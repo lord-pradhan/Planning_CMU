@@ -3,9 +3,12 @@
  * planner.c
  *
  *=================================================================*/
+#include <iostream>
 #include <math.h>
 #include <mex.h>
 #include <array>
+#include <queue>
+#include <vector>
 
 using namespace std;
 
@@ -35,10 +38,9 @@ using namespace std;
 
 #define NUMOFDIRS 8
 
-class OpenSet{
+// class OpenSet{
 
-};
-
+// };
 
 class State{
 
@@ -49,13 +51,20 @@ private:
 	double f_val;
 	bool closed;
 	int heap_index;
+	bool expanded;
 
 public:
 
-	State(): g_val(10000000), closed(0){}
+	State(): g_val(10000000.0), closed(0), expanded(0){}
 
 	int getX() const {return x_grid;} 
 	int getY() const {return y_grid;} 
+	int getH() const {return h_val;} 
+	int getG() const {return g_val;} 
+	int getF() const {return f_val;} 
+	int getExpanded() const {return expanded;} 
+	int getClosed() const {return closed;} 
+
 
 	void setX(int x_grid_) { x_grid = x_grid_; return;}
 	void setY(int y_grid_) { y_grid = y_grid_; return;}
@@ -75,9 +84,21 @@ public:
 	// returns true if successfully added to closed
 	void addToClosed(){ closed = 1; return; }
 
+	void expand(){expanded = 1; return;}
+
 	void setHeapInd(int heap_index_){heap_index = heap_index_; return;}
 
 };
+
+
+
+struct CompareF{
+    bool operator()(State const & s1, State const & s2) {
+        // return "true" if "p1" is ordered before "p2", for example:
+        return s1.getF() < s2.getF();
+    }
+};
+
 
 
 static void planner(
@@ -135,18 +156,69 @@ static void planner(
 
     // ********** New Planner *********
 
-    State = state;
-	state grid_map[x_size][y_size];
+    // declare variables
+    int t_ct = curr_time;
+    // State = state;
+	State grid_map[x_size][y_size];
 
+	// initialize map
 	for (int i =0; i<x_size; i++){
 		for (int j=0; j<y_size; j++){
 
-			grid_map[i][j].setX(i);
-			grid_map[i][j].setY(i);
+			grid_map[i][j].setX(i+1);
+			grid_map[i][j].setY(j+1);
 
-			grid_map[i][j].setH(goalposeX, goalposeY);
-
+			grid_map[i][j].setH(targetposeX[t_ct+1], targetposeY[t_ct+1]);
 		}
+	}
+
+	// initialize start state
+	grid_map[robotposeX-1][robotposeY-1].setGF(0.0);
+
+	// initialize open list
+	priority_queue <State, vector<State>, CompareF> open_set;
+	open_set.push( grid_map[robotposeX-1][robotposeY-1] );
+
+	// start while loop for A*
+	while(grid_map[ target_traj[t_ct] ][ target_traj[t_ct + target_steps] ].expanded == 0 && !open_set.empty() ){
+
+		expanded_node = open_set.top();
+		open_set.top().expand();
+		open_set.top().addToClosed();
+		open_set.pop();
+
+		// span through successors at next time step
+		t_ct++;
+		for(int dir = 0; dir < NUMOFDIRS; dir++){
+
+	        int newx = robotposeX + dX[dir];
+	        int newy = robotposeY + dY[dir];
+
+	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
+	        {
+	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newx-1][newy-1].closed) )  //if free
+	            {
+	                // disttotarget = (double)sqrt(((newx-goalposeX)*(newx-goalposeX) + (newy-goalposeY)*(newy-goalposeY)));
+	                // if(disttotarget < olddisttotarget)
+	                // {
+	                //     olddisttotarget = disttotarget;
+	                //     bestX = dX[dir];
+	                //     bestY = dY[dir];
+	                // }
+
+	            	if( grid_map[newx-1][newy-1].getG() > expanded_node.getG() + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
+
+						grid_map[newx-1][newy-1].setH(targetposeX[t_ct+1], targetposeY[t_ct+1]);
+						grid_map[newx-1][newy-1].setGF()
+	            	}
+
+	            }
+	        }
+	    }
+
+
+
+
 	}
 
 
