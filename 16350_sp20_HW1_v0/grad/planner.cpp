@@ -5,6 +5,9 @@
  *=================================================================*/
 #include <math.h>
 #include <mex.h>
+#include <array>
+
+using namespace std;
 
 /* Input Arguments */
 #define	MAP_IN                  prhs[0]
@@ -32,6 +35,51 @@
 
 #define NUMOFDIRS 8
 
+class OpenSet{
+
+};
+
+
+class State{
+
+private:
+	int x_grid, y_grid;
+	double g_val;
+	double h_val;
+	double f_val;
+	bool closed;
+	int heap_index;
+
+public:
+
+	State(): g_val(10000000), closed(0){}
+
+	int getX() const {return x_grid;} 
+	int getY() const {return y_grid;} 
+
+	void setX(int x_grid_) { x_grid = x_grid_; return;}
+	void setY(int y_grid_) { y_grid = y_grid_; return;}
+
+	void setGF(double g_val_) { 
+		g_val = g_val_;
+		f_val = g_val + h_val;
+		return;
+	}
+
+	void setH(int goalposeX, int goalposeY){
+
+		h_val = (double)sqrt(((x_grid - goalposeX)*(x_grid-goalposeX) + (y_grid-goalposeY)*(y_grid-goalposeY)));
+		return;
+	}
+
+	// returns true if successfully added to closed
+	void addToClosed(){ closed = 1; return; }
+
+	void setHeapInd(int heap_index_){heap_index = heap_index_; return;}
+
+};
+
+
 static void planner(
         double*	map,
         int collision_thresh,
@@ -49,38 +97,59 @@ static void planner(
 {
     // 8-connected grid
     int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
-    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1};
+    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1}; 
     
     // for now greedily move towards the final target position,
     // but this is where you can put your planner
 
-    int goalposeX = (int) target_traj[target_steps-1];
-    int goalposeY = (int) target_traj[target_steps-1+target_steps];
+    // int goalposeX = (int) target_traj[target_steps-1];
+    // int goalposeY = (int) target_traj[target_steps-1+target_steps];
     // printf("robot: %d %d;\n", robotposeX, robotposeY);
     // printf("goal: %d %d;\n", goalposeX, goalposeY);
 
     int bestX = 0, bestY = 0; // robot will not move if greedy action leads to collision
-    double olddisttotarget = (double)sqrt(((robotposeX-goalposeX)*(robotposeX-goalposeX) + (robotposeY-goalposeY)*(robotposeY-goalposeY)));
-    double disttotarget;
-    for(int dir = 0; dir < NUMOFDIRS; dir++)
-    {
-        int newx = robotposeX + dX[dir];
-        int newy = robotposeY + dY[dir];
 
-        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
-        {
-            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh))  //if free
-            {
-                disttotarget = (double)sqrt(((newx-goalposeX)*(newx-goalposeX) + (newy-goalposeY)*(newy-goalposeY)));
-                if(disttotarget < olddisttotarget)
-                {
-                    olddisttotarget = disttotarget;
-                    bestX = dX[dir];
-                    bestY = dY[dir];
-                }
-            }
-        }
-    }
+    // ********** Old Planner ********
+    // double olddisttotarget = (double)sqrt(((robotposeX-goalposeX)*(robotposeX-goalposeX) + (robotposeY-goalposeY)*(robotposeY-goalposeY)));
+    // double disttotarget;
+    // for(int dir = 0; dir < NUMOFDIRS; dir++)
+    // {
+    //     int newx = robotposeX + dX[dir];
+    //     int newy = robotposeY + dY[dir];
+
+    //     if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
+    //     {
+    //         if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh))  //if free
+    //         {
+    //             disttotarget = (double)sqrt(((newx-goalposeX)*(newx-goalposeX) + (newy-goalposeY)*(newy-goalposeY)));
+    //             if(disttotarget < olddisttotarget)
+    //             {
+    //                 olddisttotarget = disttotarget;
+    //                 bestX = dX[dir];
+    //                 bestY = dY[dir];
+    //             }
+    //         }
+    //     }
+    // }
+
+
+    // ********** New Planner *********
+
+    State = state;
+	state grid_map[x_size][y_size];
+
+	for (int i =0; i<x_size; i++){
+		for (int j=0; j<y_size; j++){
+
+			grid_map[i][j].setX(i);
+			grid_map[i][j].setY(i);
+
+			grid_map[i][j].setH(goalposeX, goalposeY);
+
+		}
+	}
+
+
     robotposeX = robotposeX + bestX;
     robotposeY = robotposeY + bestY;
     action_ptr[0] = robotposeX;
