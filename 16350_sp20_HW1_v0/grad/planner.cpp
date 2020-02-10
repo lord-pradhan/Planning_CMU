@@ -120,6 +120,7 @@ static void planner(
         double* action_ptr
         )
 {
+    cout<<"Started program"<<endl;
     // 8-connected grid
     int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
     int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1}; 
@@ -188,8 +189,10 @@ static void planner(
 	while( !grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps+1] ].getExpanded() && !open_set.empty() && t_ct <100){
 
 		expanded_node = open_set.top();
-		open_set.top().expand();
-		open_set.top().addToClosed();
+		expanded_node.expand();
+		expanded_node.addToClosed();
+		// open_set.top().expand();
+		// open_set.top().addToClosed();
 		open_set.pop();
 
 
@@ -202,7 +205,7 @@ static void planner(
 
 	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
 	        {
-	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newx-1][newy-1].closed) )  //if free
+	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newx-1][newy-1].getClosed()) )  //if free
 	            {
 
 	            	if( grid_map[newx-1][newy-1].getG() > expanded_node.getG() + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
@@ -248,7 +251,7 @@ static void planner(
 	    back_ct++;
 	}
 
-	optPath.pop_front()
+	optPath.pop_front();
 	robotposeX = optPath.front().getX();
 	robotposeY = optPath.front().getY();
     // robotposeX = robotposeX + bestX;
