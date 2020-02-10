@@ -9,6 +9,8 @@
 #include <array>
 #include <queue>
 #include <vector>
+#include <list>
+#include <iterator>
 
 using namespace std;
 
@@ -55,15 +57,17 @@ private:
 
 public:
 
-	State(): g_val(10000000.0), closed(0), expanded(0){}
+	State(): g_val(10000000.0), closed(0), expanded(0){
+		// bool optPath = 0;
+	}
 
 	int getX() const {return x_grid;} 
 	int getY() const {return y_grid;} 
-	int getH() const {return h_val;} 
-	int getG() const {return g_val;} 
-	int getF() const {return f_val;} 
-	int getExpanded() const {return expanded;} 
-	int getClosed() const {return closed;} 
+	double getH() const {return h_val;} 
+	double getG() const {return g_val;} 
+	double getF() const {return f_val;} 
+	bool getExpanded() const {return expanded;} 
+	bool getClosed() const {return closed;} 
 
 
 	void setX(int x_grid_) { x_grid = x_grid_; return;}
@@ -155,9 +159,10 @@ static void planner(
 
 
     // ********** New Planner *********
-
     // declare variables
     int t_ct = curr_time;
+    int back_ct=0;
+    State expanded_node;
     // State = state;
 	State grid_map[x_size][y_size];
 
@@ -168,7 +173,7 @@ static void planner(
 			grid_map[i][j].setX(i+1);
 			grid_map[i][j].setY(j+1);
 
-			grid_map[i][j].setH(targetposeX[t_ct+1], targetposeY[t_ct+1]);
+			grid_map[i][j].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
 		}
 	}
 
@@ -179,51 +184,75 @@ static void planner(
 	priority_queue <State, vector<State>, CompareF> open_set;
 	open_set.push( grid_map[robotposeX-1][robotposeY-1] );
 
-	// start while loop for A*
-	while(grid_map[ target_traj[t_ct] ][ target_traj[t_ct + target_steps] ].expanded == 0 && !open_set.empty() ){
+	// start while loop for A* expansion
+	while( !grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps+1] ].getExpanded() && !open_set.empty() && t_ct <100){
 
 		expanded_node = open_set.top();
 		open_set.top().expand();
 		open_set.top().addToClosed();
 		open_set.pop();
 
+
 		// span through successors at next time step
 		t_ct++;
 		for(int dir = 0; dir < NUMOFDIRS; dir++){
 
-	        int newx = robotposeX + dX[dir];
-	        int newy = robotposeY + dY[dir];
+	        int newx = expanded_node.getX() + dX[dir];
+	        int newy = expanded_node.getY() + dY[dir];
 
 	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
 	        {
 	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newx-1][newy-1].closed) )  //if free
 	            {
-	                // disttotarget = (double)sqrt(((newx-goalposeX)*(newx-goalposeX) + (newy-goalposeY)*(newy-goalposeY)));
-	                // if(disttotarget < olddisttotarget)
-	                // {
-	                //     olddisttotarget = disttotarget;
-	                //     bestX = dX[dir];
-	                //     bestY = dY[dir];
-	                // }
 
 	            	if( grid_map[newx-1][newy-1].getG() > expanded_node.getG() + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
 
-						grid_map[newx-1][newy-1].setH(targetposeX[t_ct+1], targetposeY[t_ct+1]);
-						grid_map[newx-1][newy-1].setGF()
+						grid_map[newx-1][newy-1].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
+						grid_map[newx-1][newy-1].setGF(expanded_node.getG() + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
+						open_set.push(grid_map[newx-1][newy-1]);
 	            	}
 
 	            }
 	        }
 	    }
 
+	    // if (grid_map[ (int) target_traj[t_ct] ][ (int) target_traj[t_ct + target_steps] ].getExpanded()){int t_end = t_ct;}
 
+	    if (t_ct >= 100){cout << "Unable to find a solution"<<endl;}
 
-
+	    if ( grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps+1] ].getExpanded() ){cout << "Expanded the target"<<endl;}
 	}
 
+	// start backtracking
+	// State final_st = grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps + 1] ];
+	list <State> optPath;
+	optPath.push_front(grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps + 1] ]);
 
-    robotposeX = robotposeX + bestX;
-    robotposeY = robotposeY + bestY;
+	while( optPath.front().getX() != grid_map[robotposeX-1][robotposeY-1].getX() && optPath.front().getY() != grid_map[robotposeX-1][robotposeY-1].getY() && back_ct < 100 ){
+
+		for(int dir = 0; dir < NUMOFDIRS; dir++){
+
+			double min_G;
+	        int newx = optPath.front().getX() + dX[dir];
+	        int newy = optPath.front().getY() + dY[dir];
+
+	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size){
+
+	        	if(min_G > grid_map[newx-1][newy-1].getG() + (int)map[GETMAPINDEX(optPath.front().getX() , optPath.front().getY(), x_size,y_size)] ){
+		        	
+		        	optPath.push_front(grid_map[newx-1][newy-1]);
+	        	}
+	        }
+	    }
+
+	    back_ct++;
+	}
+
+	optPath.pop_front()
+	robotposeX = optPath.front().getX();
+	robotposeY = optPath.front().getY();
+    // robotposeX = robotposeX + bestX;
+    // robotposeY = robotposeY + bestY;
     action_ptr[0] = robotposeX;
     action_ptr[1] = robotposeY;
     
