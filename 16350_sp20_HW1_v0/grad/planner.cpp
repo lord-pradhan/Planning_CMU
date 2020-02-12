@@ -11,6 +11,8 @@
 #include <vector>
 #include <list>
 #include <iterator>
+#include <limits>
+#include <bits/stdc++.h> 
 
 using namespace std;
 
@@ -57,16 +59,19 @@ private:
 
 public:
 
-	State(): g_val(1000.0), closed(0), expanded(0){
+	State(): closed(false), expanded(false){
 		// bool optPath = 0;
+		g_val = numeric_limits<double>::infinity();
 	}
 
-	// ~State(){}
+	// ~State(){ numeric_limits<double>::infinity()
+
+	// }
 
 	int getX() const {return x_grid;} 
 	int getY() const {return y_grid;} 
 	double getH() const {return h_val;} 
-	double getG() const {return g_val;} 
+	double getG()  {return g_val;} 
 	double getF() const {return f_val;} 
 	bool getExpanded() const {return expanded;} 
 	bool getClosed() const {return closed;} 
@@ -78,10 +83,9 @@ public:
 	void setG(double g_val_) { 
 		g_val = g_val_;
 		// f_val = g_val + h_val;
-		return;
 	}
 
-	void setF(void){f_val = g_val + h_val;}
+	void setF(){f_val = g_val + 1.0*h_val;}
 
 	void setH(int goalposeX, int goalposeY){
 
@@ -90,9 +94,9 @@ public:
 	}
 
 	// returns true if successfully added to closed
-	void addToClosed(){ closed = 1; return; }
+	void addToClosed(){ closed = true; return; }
 
-	void expand(){ expanded = 1; return; }
+	void expand(){ expanded = true; return; }
 
 	// void setHeapInd(int heap_index_){heap_index = heap_index_; return;}
 
@@ -101,7 +105,7 @@ public:
 struct CompareF{
     bool operator()(State const & s1, State const & s2) {
         // return "true" if "p1" is ordered before "p2", for example:
-        return s1.getF() < s2.getF();
+        return s1.getF() > s2.getF();
     }
 };
 
@@ -162,7 +166,7 @@ static void planner(
 
     // ********** New Planner *********
     // declare variables
-    int t_ct = curr_time;
+    int t_ct = 0;
     int back_ct=0;
     // State expanded_node;
     // State = state;
@@ -173,6 +177,7 @@ static void planner(
 	//    grid_map[i1].resize(x_size);
 
     State state_init;
+    mexPrintf("testing the state %f \n", state_init.getG());
 	vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
 
 
@@ -180,6 +185,8 @@ static void planner(
 
 	// initialize start state
 	grid_map[robotposeY-1][ robotposeX - 1 ].setG(0.0);
+	mexPrintf("G_init is %f \n", grid_map[robotposeY-1][ robotposeX - 1 ].getG());
+	mexPrintf("G_1_1 is %f \n", grid_map[1-1][ 1 - 1 ].getG());
 
 	// initialize map
 	for (int i =0; i<y_size; i++){
@@ -189,7 +196,8 @@ static void planner(
 			grid_map[i][j].setY(i+1);
 
 			// grid_map[i][j].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
-			grid_map[i][j].setH(targetposeX, targetposeY);
+			// grid_map[i][j].setH(targetposeX, targetposeY);
+			grid_map[i][j].setH(target_traj[curr_time+1], target_traj[curr_time+1+target_steps]);
 			grid_map[i][j].setF();
 		}
 	}
@@ -203,14 +211,15 @@ static void planner(
 
 	// start while loop for A* expansion
 	// while( !grid_map[ (int) target_traj[t_ct+ 1 + target_steps]-1 ][ (int) target_traj[t_ct +1] -1 ].getExpanded() && !open_set.empty() && t_ct <79000){
-	while( !grid_map[ (int) targetposeY - 1 ][ (int) targetposeX -1 ].getExpanded() && !open_set.empty() && t_ct <79000){
+	while( !grid_map[ (int) target_traj[curr_time+1+target_steps] - 1 ][ (int) target_traj[curr_time+1] -1 ].getExpanded() && !open_set.empty() && t_ct <790000){
 
-		int x_temp = open_set.top().getX();
-		int y_temp = open_set.top().getY();
-		double g_temp = open_set.top().getG();
-		mexPrintf("g_temp value is %d \n", g_temp);				
+		State temp = open_set.top();
+		int x_temp = temp.getX();
+		int y_temp = temp.getY();
+		double g_temp = temp.getG();
+		// mexPrintf("g_temp value is %f \n", g_temp);				
 		grid_map[y_temp-1][x_temp-1].expand();
-		grid_map[y_temp-1][x_temp-1].addToClosed();
+		// grid_map[y_temp-1][x_temp-1].addToClosed();
 
 		// remove smallest S from open
 		open_set.pop();
@@ -225,19 +234,18 @@ static void planner(
 
 	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
 	        {
-	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newy-1][newx-1].getClosed()) )  //if free
+	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newy-1][newx-1].getExpanded()) )  //if free
 	            {
 
 	            	if( grid_map[newy-1][newx-1].getG() > g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
 
 						grid_map[newy-1][newx-1].setG(g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
-						mexPrintf("G (s') is %d \n", grid_map[newy-1][newx-1].getG());
+						// mexPrintf("G (s') is %f \n", grid_map[newy-1][newx-1].getG());
 						// grid_map[newy-1][newx-1].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
-						grid_map[newy-1][newx-1].setH(targetposeX, targetposeY);
+						// grid_map[newy-1][newx-1].setH(targetposeX, targetposeY);
 						grid_map[newy-1][newx-1].setF();
 						open_set.push(grid_map[newy-1][newx-1]);
 	            	}
-
 	            }
 	        }
 	    }
@@ -246,38 +254,52 @@ static void planner(
 
 	    // if (grid_map[ (int) target_traj[t_ct] ][ (int) target_traj[t_ct + target_steps] ].getExpanded()){int t_end = t_ct;}
 
-	    if (t_ct >= 79000){cout << "Unable to find a solution\n"<<endl;}
+	    if (t_ct >= 790000){cout << "Unable to find a solution\n"<<endl;}
 
 	    // if ( grid_map[ (int) target_traj[t_ct+1+target_steps] - 1  ][ (int) target_traj[t_ct +1] - 1 ].getExpanded() ){cout << "Expanded the target"<<endl; break;}
-	    if ( grid_map[ (int) targetposeY - 1  ][ (int) targetposeX - 1 ].getExpanded() ){cout << "Expanded the target"<<endl; break;}
-
+	    if ( grid_map[ (int) target_traj[curr_time+1+target_steps] - 1  ][ (int) target_traj[curr_time+1] - 1 ].getExpanded() ){cout << "Expanded the target"<<endl; break;}
 
 	}
 
+	mexPrintf("Target g-value = %f \n", grid_map[  target_traj[curr_time+1+target_steps] - 1 ][ target_traj[curr_time+1] - 1].getG());
+	// mexPrintf("Target robot-value  = %f \n", grid_map[  240 - 1 ][ 150 - 1].getG());
+
+	// for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
+
+ //        int newx = grid_map[  targetposeY +1-1 - 1 ][ targetposeX +2 - 1].getX() + dX[dir1];
+ //        int newy = grid_map[  targetposeY +1-1 - 1 ][ targetposeX +2 - 1].getY() + dY[dir1];
+ //        mexPrintf("G around target is %f, \n", grid_map[newy-1][newx-1].getG());}
+
+	// grid_map[newy-1][newx-1].setG(g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
+
 	// start backtracking
 	// State final_st = grid_map[ (int) target_traj[t_ct+1] ][ (int) target_traj[t_ct + target_steps + 1] ];
-	queue <State> optPath;
+	stack <State> optPath;
 	// optPath.push(grid_map[ (int) target_traj[t_ct+1+target_steps] - 1 ][ (int) target_traj[t_ct + 1] - 1]);
-	optPath.push(grid_map[ (int) targetposeY - 1 ][ (int) targetposeX - 1]);
+	optPath.push(grid_map[  target_traj[curr_time+1+target_steps] - 1 ][ target_traj[curr_time+1] - 1]);
 
-	while( (optPath.front().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.front().getY() != grid_map[robotposeY-1][robotposeX-1].getY() ) && back_ct < 790000 ){
+	while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() != grid_map[robotposeY-1][robotposeX-1].getY() ) && back_ct < 790000 ){
 
-		double min_G = 100000; 
+		double min_G = numeric_limits<double>::infinity(); 
 		int finX, finY;
 
-		for(int dir = 0; dir < NUMOFDIRS; dir++){
+		for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
 
-	        int newx = optPath.front().getX() + dX[dir];
-	        int newy = optPath.front().getY() + dY[dir];
+	        int newx = optPath.top().getX() + dX[dir1];
+	        int newy = optPath.top().getY() + dY[dir1];
+	        // mexPrintf("newx is %d, \n",newx);
 
 	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
 
 				min_G = grid_map[newy-1][newx-1].getG();
 				finX = newx; finY = newy;
-				// mexPrintf()
 	        }
+
+	        // vector<double> v;
+
 	    }
 	    // grid_map[finY-1][finX-1].setG(min_G);
+	    // mexPrintf("Min G is = %f \n",min_G);
 	    optPath.push(grid_map[finY-1][finX-1]);
 
 	    back_ct++;
@@ -285,9 +307,9 @@ static void planner(
 
 	mexPrintf("Back count %d \n", back_ct);
 
-	optPath.pop();	
-	int newposeX = optPath.front().getX();
-	int newposeY = optPath.front().getY();
+	optPath.pop();
+	int newposeX = optPath.top().getX();
+	int newposeY = optPath.top().getY();
 	mexPrintf("Robot pose  %d  %d  \n" , robotposeX, robotposeY);
 	mexPrintf("Next pose %d  %d  \n", newposeX, newposeY);
     // robotposeX = robotposeX + bestX;
