@@ -42,53 +42,70 @@ using namespace std;
 
 #define NUMOFDIRS 8
 
-// class OpenSet{
 
-// };
+// define useful functions
+int GetIndex(int x_abs, int y_abs, int t_abs, int x_r, int y_r, int t_r){
 
-class State{
+	x = x_abs - x_r; y = y_abs - y_r; t = t_abs - t_r;
+	return t*(2*t-1)*(2*t+1)/3 + (y+t)*(2*t+1) + x + t;
+}
+
+
+void GetXYT(int index, int &x, int &y, int &t, int x_r, int y_r, int t_r){
+
+	// while(floor(index/) )
+	// t = floor(index/)
+	// return index - floor(index / )
+}
+
+
+class Node{
 
 private:
-	int x_grid, y_grid, t_rob;
+	// int x_grid, y_grid, t_rob;
+	int id;
 	double g_val;
 	double h_val;
-	double f_val;
-	bool expanded;
+	// double f_val;
+	// bool expanded;
 
 public:
 
-	State(): expanded(false){
-
-		g_val = numeric_limits<double>::infinity();
+	Node(int id_, double g_val_): id = id_, g_val = g_val_, expanded(false){
+		// g_val = numeric_limits<double>::infinity();
 	}
 
+	// int getX() const {return x_grid;} 
+	// int getY() const {return y_grid;} 
+	// int getT() const {return t_rob;} 
+	int getID() const {return id;} 
 
-	int getX() const {return x_grid;} 
-	int getY() const {return y_grid;} 
-	int getT() const {return t_rob;} 
 	double getH() const {return h_val;} 
 	double getG()  {return g_val;} 
-	double getF() const {return f_val;} 
-	bool getExpanded() const {return expanded;} 
+	// double getF() const {return f_val;} 
+	// bool getExpanded() const {return expanded;} 
 
-
-	void setX(int x_grid_) { x_grid = x_grid_; return;}
-	void setY(int y_grid_) { y_grid = y_grid_; return;}
-	void setT(int t_rob_) { t_rob = t_rob_; return;}
+	// void setX(int x_grid_) { x_grid = x_grid_; return;}
+	// void setY(int y_grid_) { y_grid = y_grid_; return;}
+	// void setT(int t_rob_) { t_rob = t_rob_; return;}
+	void setID(int id_){
+		id = id_;
+	}
 
 	void setG(double g_val_) { 
 		g_val = g_val_;
 	}
 
-	void setF(){f_val = g_val + 1.0*h_val;}
+	// void setF(){f_val = g_val + 1.0*h_val;}
 
-	void setH(int goalposeX, int goalposeY){
+	void setH(int robotposeX, int robotposeY, int goalposeX, int goalposeY){
 
-		h_val = (double)sqrt(((x_grid - goalposeX)*(x_grid-goalposeX) + (y_grid-goalposeY)*(y_grid-goalposeY)));
+		h_val = (double)sqrt(((robotposeX - goalposeX)*(robotposeX - goalposeX)
+		 + (robotposeY-goalposeY)*(robotposeY-goalposeY)));
 		return;
 	}
 
-	void expand(){ expanded = true; return; }
+	// void expand(){ expanded = true; return; }
 
 };
 
@@ -96,7 +113,7 @@ public:
 struct CompareF{
     bool operator()(State const & s1, State const & s2) {
         // return "true" if "p1" is ordered before "p2", for example:
-        return s1.getF() > s2.getF();
+        return s1.getG() + s1.getH() > s2.getG() + s2.getH();
     }
 };
 
@@ -161,75 +178,99 @@ static void planner(
     int t_ct = 0;
     int back_ct=0;
 
-    State state_init;
-    mexPrintf("testing the state %f \n", state_init.getG());
+    // State state_init;
+    // mexPrintf("testing the state %f \n", state_init.getG());
 
     // Declare 3D grid
 	// vector< vector<vector<State> > > grid_map( target_steps - curr_time, 
 	// 	vector< vector<State> >(y_size, vector<State>(x_size, state_init) ) );
 
-	vector< vector<vector<State> > > grid_map(target_steps - curr_time);
-	for(int i =0; i<target_steps ; i++){
+	// vector< vector<vector<State> > > grid_map(target_steps - curr_time);
+	// for(int i =0; i<target_steps ; i++){
 
-		grid_map[i].resize(2*i+1 , vector<State>(2*i+1, state_init) );
-	}
+	// 	grid_map[i].resize(2*i+1 , vector<State>(2*i+1, state_init) );
+	// }
 
 	// vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
+	// mexPrintf("3D vector of states declared \n");
 
-	mexPrintf("3D vector of states declared \n");
+
+
+    // set up hash table
+    unordered_map<int, double> lookUpG;
+
+    //robot start state
+    lookUpG[0] = 0.0;
+    Node rob_start(0, 0.0);
+    Node.setH( robotposeX, robotposeY, target_traj[curr_time], target_traj[curr_time+target_steps] );
 
 	// initialize start state
-	grid_map[robotposeY-1][ robotposeX - 1 ][0].setG(0.0);
-	mexPrintf("Start initialized \n");
+	// grid_map[robotposeY-1][ robotposeX - 1 ][0].setG(0.0);
+	// mexPrintf("Start initialized \n");
 
 	// mexPrintf("G_init is %f \n", grid_map[robotposeY-1][ robotposeX - 1 ].getG());
 	// mexPrintf("G_1_1 is %f \n", grid_map[1-1][ 1 - 1 ].getG());
 
-	// initialize map
-	for (int i =0; i<y_size; i++){
-		for (int j=0; j<x_size; j++){
-			for (int k = 0; k<target_steps - curr_time; k++){
+	// // initialize map
+	// for (int i =0; i<y_size; i++){
+	// 	for (int j=0; j<x_size; j++){
+	// 		for (int k = 0; k<target_steps - curr_time; k++){
 
-				grid_map[i][j][k].setX(j+1);
-				grid_map[i][j][k].setY(i+1);
-				grid_map[i][j][k].setT(curr_time+k);
+	// 			grid_map[i][j][k].setX(j+1);
+	// 			grid_map[i][j][k].setY(i+1);
+	// 			grid_map[i][j][k].setT(curr_time+k);
 
-				// grid_map[i][j].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
-				// grid_map[i][j].setH(targetposeX, targetposeY);
-				grid_map[i][j][k].setH(target_traj[curr_time+k], target_traj[curr_time+k+target_steps]);
-				grid_map[i][j][k].setF();
-			}
-		}
-	}
+	// 			// grid_map[i][j].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
+	// 			// grid_map[i][j].setH(targetposeX, targetposeY);
+	// 			grid_map[i][j][k].setH(target_traj[curr_time+k], target_traj[curr_time+k+target_steps]);
+	// 			grid_map[i][j][k].setF();
+	// 		}
+	// 	}
+	// }
 
-	mexPrintf("3D map fully initialized \n");
+	// mexPrintf("3D map fully initialized \n");
+
 
 	// initialize open list
-	priority_queue <State, vector<State>, CompareF> open_set;
-	open_set.push( grid_map[robotposeY-1][robotposeX-1][0] );
+	// priority_queue <State, vector<State>, CompareF> open_set;.
 
-	mexPrintf("starting while loop\n");
+	priority_queue <Node, vector<Node>, CompareF> open_set;
+	//also add heuristic
+	open_set.push( rob_start );
+	
+	// initialize closed list
+	unordered_set <int> closed_set;
+
+	// mexPrintf("starting while loop\n");
 
 	// start while loop for A* expansion
-	int t_catch = curr_time;
+	int t_catch = curr_time; int index_catch = 0; double g_catch =0;
 	while( !open_set.empty() && t_ct <790000 ){
 
-		State temp = open_set.top();
-		int x_temp = temp.getX();
-		int y_temp = temp.getY();
-		int t_temp = temp.getT();
+		Node temp = open_set.top();
+		void GetXYT(int temp.getID(), int &x_temp, int &y_temp, int &t_temp, 
+			int robotposeX, int robotposeY, int curr_time);
+
+		// int x_temp = temp.getX();
+		// int y_temp = temp.getY();
+		// int t_temp = temp.getT();
+
 		double g_temp = temp.getG();
 
 		// mexPrintf("g_temp value is %f \n", g_temp);				
-		if (x_temp == target_traj[t_temp] && y_temp ==  target_traj[t_temp+target_steps] ){
+		if ( x_temp == target_traj[t_temp] && y_temp ==  target_traj[t_temp+target_steps] ){
 			
-			grid_map[y_temp-1][x_temp-1][t_temp - curr_time].expand();
+			closed_set.insert(temp.getID());
 			cout << "Expanded the target"<<endl;
 			t_catch = t_temp;
+			index_catch = index_temp;
+			g_catch = g_temp;
 			break;
 		}
+
 		else
-			grid_map[y_temp-1][x_temp-1][t_temp - curr_time].expand();
+			closed_set.insert( temp.getID() );
+			// grid_map[y_temp-1][x_temp-1][t_temp - curr_time].expand();
 
 		// remove smallest S from open
 		open_set.pop();
@@ -243,20 +284,23 @@ static void planner(
 	        int newy = y_temp + dY[dir];
 
 	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
-	        {
+	        {	
+	        	int index_temp = GetIndex(newx, newy, t_temp+1, robotposeX, robotposeY, curr_time);
 	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] 
-	            	< collision_thresh) && (!grid_map[newy-1][newx-1][t_temp-curr_time+1].getExpanded()) )  //if free
+	            	< collision_thresh) && (closed_set.find(index_temp)==closed_set.end()) )
 	            {
 
-	            	if( grid_map[newy-1][newx-1][t_temp-curr_time+1].getG() > g_temp + 
-	            		(int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
+	            	if( lookUpG.find(index_temp)==lookUpG.end() || lookUpG[index_temp] >
+	            	 g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
 
-						grid_map[newy-1][newx-1][t_temp-curr_time+1].setG(g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
+						lookUpG[index_temp] = g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)];
 						// mexPrintf("G (s') is %f \n", grid_map[newy-1][newx-1].getG());
 						// grid_map[newy-1][newx-1].setH(target_traj[t_ct+1], target_traj[t_ct+1+target_steps]);
 						// grid_map[newy-1][newx-1].setH(targetposeX, targetposeY);
-						grid_map[newy-1][newx-1][t_temp-curr_time+1].setF();
-						open_set.push(grid_map[newy-1][newx-1][t_temp-curr_time+1]);
+						// grid_map[newy-1][newx-1][t_temp-curr_time+1].setF();						
+						Node toPush( index_temp, lookUpG[index_temp] );
+						toPush.setH( newx, newy, target_traj[t_temp+1], target_traj[t_temp+target_steps+1] );
+						open_set.push(toPush);
 	            	}
 	            }
 	        }
@@ -276,8 +320,10 @@ static void planner(
 	}
 
 	// start backtracking
-	stack <State> optPath; int t_back = t_catch;
-	optPath.push(grid_map[  target_traj[t_catch+target_steps]- 1 ][ target_traj[t_catch] - 1][t_catch-curr_time]);
+	stack <Node> optPath; int t_back = t_catch; int index_back = index_catch;
+	Node temp_back(index_catch, g_catch);
+	optPath.push( 
+		grid_map[  target_traj[t_catch+target_steps]- 1 ][ target_traj[t_catch] - 1][t_catch-curr_time]);
 
 	while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1][0].getX() || 
 		optPath.top().getY() != grid_map[robotposeY-1][robotposeX-1][0].getY() 
