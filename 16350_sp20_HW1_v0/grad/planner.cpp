@@ -99,7 +99,8 @@ public:
 struct CompareF{
     bool operator()(Node const & n1, Node const & n2) {
         // return "true" if "p1" is ordered before "p2", for example:
-        return n1.getG() + 1000.0*n1.getH() > n2.getG() + 1000.0*n2.getH();
+        long long int eps = 10000000;
+        return n1.getG() + eps*n1.getH() > n2.getG() + eps*n2.getH();
     }
 };
 
@@ -236,7 +237,7 @@ static void planner(
 			int finX, finY, finT; unsigned long fin_index;
 			Node temp1 = optPath.top();
 			int x_back = temp1.getX(); int y_back = temp1.getY(); int t_back = temp1.getT();
-			mexPrintf("state while backtracking is %d %d %d \n", x_back, y_back, t_back);
+			// mexPrintf("state while backtracking is %d %d %d \n", x_back, y_back, t_back);
 		
 			for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
 
