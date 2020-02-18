@@ -43,7 +43,7 @@ using namespace std;
 #define	MIN(A, B)	((A) < (B) ? (A) : (B))
 #endif
 
-#define NUMOFDIRS 8
+#define NUMOFDIRS 9
 
 int l_binary = -100;
 int r_binary = -100;
@@ -51,6 +51,10 @@ int r_binary = -100;
 // class OpenSet{
 
 // };
+
+double euclidDist(int x1, int y1, int x2, int y2){
+	return (double)sqrt((x1 - x2)*(x1-x2) + (y1-y2)*(y1-y2));
+}
 
 class State{
 
@@ -119,15 +123,17 @@ static void planner(
 	int newposeX = robotposeX; int newposeY = robotposeY;
 	// mexPrintf("Target steps are %d \n", target_steps);
 
+
 	if (l_binary == -100){l_binary = curr_time;}
-	if (r_binary==-100){r_binary = target_steps;}
+	if (r_binary== -100){r_binary = target_steps;}
 
+	// if robot reaches, wait there
+	if
 
-	while( duration.count() < 1000){ //&& l_binary <= r_binary){
+	while( duration.count() < 990 && euclidDist(robotposeX, robotposeY, 
+	target_traj[curr_time], target_traj[curr_time+target_steps]) > 2){ //&& l_binary <= r_binary){ // optPath.pop();
 
 		int target_point = ceil(l_binary + (r_binary - l_binary)/2);
-
-
 
 		// mid_array = l + (r-l)/2;
 
@@ -139,8 +145,8 @@ static void planner(
 
 	    // mexPrintf("Started program");
 	    // 8-connected grid
-	    int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
-	    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1}; 
+	    int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1, 0};
+	    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1, 0}; 
 
 	    // ********** New Planner *********
 	    // declare variables
@@ -233,7 +239,6 @@ static void planner(
 		    }
 		   
 		    optPath.push(grid_map[finY-1][finX-1]);
-
 		    back_ct++;
 		}
 
@@ -250,6 +255,8 @@ static void planner(
 
 			if (del_t==0){
 				mexPrintf("del_t = 0, Plan executed \n");
+				action_ptr[0] = newposeX;
+			    action_ptr[1] = newposeY;
 				return;
 			}
 
@@ -260,7 +267,6 @@ static void planner(
 				l_binary = target_point +1;
 	
 		}
-
 
 		// mexPrintf("Robot pose  %d  %d  \n" , robotposeX, robotposeY);
 		// mexPrintf("Next pose %d  %d  \n", newposeX, newposeY);
@@ -277,12 +283,22 @@ static void planner(
 	// 	optPath.pop();
 	// }
 
+	if ( euclidDist(robotposeX, robotposeY, target_traj[curr_time], target_traj[curr_time+target_steps]) <= 10 ){
+
+		// mexPrintf("Converged \n");
+		// mexPrintf("Plan executed \n");
+		newposeX = optPath.top().getX();
+		newposeY = optPath.top().getY();
+		optPath.pop();
+	}
+
+	// if (robotposeX==target_traj[curr_time])
+
 	// mexPrintf("newpose is : %d %d \n", newposeX, newposeY);
 	action_ptr[0] = newposeX;
     action_ptr[1] = newposeY;
 	return;
 }
-
 
 // prhs contains input parameters (4):
 // 1st is matrix with all the obstacles
