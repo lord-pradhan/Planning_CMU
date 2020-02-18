@@ -96,7 +96,7 @@ struct CompareF{
     }
 };
 
-// stack <State> optPath;
+stack <State> optPath;
 
 static void planner(
         double*	map,
@@ -124,7 +124,7 @@ static void planner(
 	if (r_binary==-100){r_binary = target_steps;}
 
 
-	while( duration.count() < 1000 ){
+	while( duration.count() < 1000 && l_binary <= r_binary){
 
 		int target_point = floor(l_binary + (r_binary - l_binary)/2);
 
@@ -148,9 +148,9 @@ static void planner(
 	    int t_ct = 0;
 	    int back_ct=0;
 
-	    // while(!optPath.empty()){
-	    // 	optPath.pop();
-	    // }
+	    while(!optPath.empty()){
+	    	optPath.pop();
+	    }
 
 	    State state_init;
 		vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
@@ -211,7 +211,7 @@ static void planner(
 		}
 
 		// start backtracking
-		stack <State> optPath;
+		// stack <State> optPath;
 		optPath.push(grid_map[ target_traj[target_point+target_steps] - 1 ][ target_traj[target_point] - 1]);
 
 		while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() 
@@ -240,7 +240,7 @@ static void planner(
 
 		int del_t = target_point - curr_time - optPath.size(); //time that robot has to wait there
 
-		optPath.pop();
+		// optPath.pop();
 
 		// begin binary seach for next target point
 		if (l_binary <= r_binary){
@@ -257,23 +257,6 @@ static void planner(
 				l_binary = target_point +1;
 	
 		}
-		
-		// while(curr_time < target_steps){
-
-		// 	int array_mid  = curr_time + 
-		// }
-
-		// if (del_t < 0){
-
-		// 	array_mid = 
-
-		// 	target_point = floor( (target_steps + target_point)/2 );
-		// 	array_mid = target_point;
-		// }
-		// else
-		// 	target_point = floor(( target_point )/2);
-
-		// mexPrintf("Target point is %d \n", target_point);
 
 
 		// mexPrintf("Robot pose  %d  %d  \n" , robotposeX, robotposeY);
@@ -282,6 +265,7 @@ static void planner(
 	    duration = duration_cast<microseconds>(stop - start);
 	}
 
+	optPath.pop();
 	// mexPrintf("Plan executed \n");
 	newposeX = optPath.top().getX();
 	newposeY = optPath.top().getY();
