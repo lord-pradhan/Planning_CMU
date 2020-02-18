@@ -58,7 +58,6 @@ private:
 	int x_grid, y_grid;
 	double g_val;
 	double h_val;
-
 	bool expanded;
 
 public:
@@ -124,9 +123,9 @@ static void planner(
 	if (r_binary==-100){r_binary = target_steps;}
 
 
-	while( duration.count() < 1000 && l_binary <= r_binary){
+	while( duration.count() < 1000){ //&& l_binary <= r_binary){
 
-		int target_point = floor(l_binary + (r_binary - l_binary)/2);
+		int target_point = ceil(l_binary + (r_binary - l_binary)/2);
 
 
 
@@ -241,6 +240,10 @@ static void planner(
 		int del_t = target_point - curr_time - optPath.size(); //time that robot has to wait there
 
 		// optPath.pop();
+		optPath.pop();
+		// mexPrintf("Plan executed \n");
+		newposeX = optPath.top().getX();
+		newposeY = optPath.top().getY();
 
 		// begin binary seach for next target point
 		if (l_binary <= r_binary){
@@ -265,11 +268,16 @@ static void planner(
 	    duration = duration_cast<microseconds>(stop - start);
 	}
 
-	optPath.pop();
-	// mexPrintf("Plan executed \n");
-	newposeX = optPath.top().getX();
-	newposeY = optPath.top().getY();
+	// if (l_binary>r_binary){
 
+	// 	// mexPrintf("Converged \n");
+	// 	// mexPrintf("Plan executed \n");
+	// 	newposeX = optPath.top().getX();
+	// 	newposeY = optPath.top().getY();
+	// 	optPath.pop();
+	// }
+
+	// mexPrintf("newpose is : %d %d \n", newposeX, newposeY);
 	action_ptr[0] = newposeX;
     action_ptr[1] = newposeY;
 	return;
