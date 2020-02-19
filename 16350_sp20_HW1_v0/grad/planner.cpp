@@ -43,7 +43,7 @@ using namespace std;
 #define	MIN(A, B)	((A) < (B) ? (A) : (B))
 #endif
 
-#define NUMOFDIRS 9
+#define NUMOFDIRS 8
 
 int l_binary = -100;
 int r_binary = -100;
@@ -128,25 +128,18 @@ static void planner(
 	if (r_binary== -100){r_binary = target_steps;}
 
 	// if robot reaches, wait there
-	if
 
-	while( duration.count() < 990 && euclidDist(robotposeX, robotposeY, 
-	target_traj[curr_time], target_traj[curr_time+target_steps]) > 2){ //&& l_binary <= r_binary){ // optPath.pop();
+	while( duration.count() < 999 ){ //&& l_binary <= r_binary
+	// euclidDist(robotposeX, robotposeY, 
+	// target_traj[curr_time], target_traj[curr_time+target_steps]) > 2){ // // optPath.pop();
 
 		int target_point = ceil(l_binary + (r_binary - l_binary)/2);
-
-		// mid_array = l + (r-l)/2;
-
-		// if (del_t == 0) { break; }
-
-		// else if (del_t > 0){ l = mid_array +1; }
-
-		// else if (del_t < 0){ r = mid_array-1 ;}
+		// mexPrintf("target point is %d \n", target_point);
 
 	    // mexPrintf("Started program");
 	    // 8-connected grid
-	    int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1, 0};
-	    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1, 0}; 
+	    int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
+	    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1}; 
 
 	    // ********** New Planner *********
 	    // declare variables
@@ -181,7 +174,8 @@ static void planner(
 		// mexPrintf("starting while loop\n");
 
 		// start while loop for A* expansion
-		while( !grid_map[ (int) target_traj[target_point+target_steps] - 1 ][ (int) target_traj[target_point] -1 ].getExpanded() && !open_set.empty() ){
+		while( !grid_map[ (int) target_traj[target_point+target_steps] - 1 ][ 
+			(int) target_traj[target_point] -1 ].getExpanded() && !open_set.empty() ){
 
 			State temp = open_set.top();
 			int x_temp = temp.getX();
@@ -202,7 +196,9 @@ static void planner(
 
 		        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
 		        {
-		            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newy-1][newx-1].getExpanded()) )  //if free
+		            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && 
+		            ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && 
+		            (!grid_map[newy-1][newx-1].getExpanded()) )  //if free
 		            {
 
 		            	if( grid_map[newy-1][newx-1].getG() > g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
@@ -220,7 +216,7 @@ static void planner(
 		optPath.push(grid_map[ target_traj[target_point+target_steps] - 1 ][ target_traj[target_point] - 1]);
 
 		while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() 
-			!= grid_map[robotposeY-1][robotposeX-1].getY() ) && back_ct < 790000 ){
+			!= grid_map[robotposeY-1][robotposeX-1].getY() ) && !optPath.empty() ){
 
 			double min_G = numeric_limits<double>::infinity(); 
 			int finX, finY;
@@ -230,7 +226,8 @@ static void planner(
 		        int newx = optPath.top().getX() + dX[dir1];
 		        int newy = optPath.top().getY() + dY[dir1];
 
-		        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
+		        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && 
+		        	min_G > grid_map[newy-1][newx-1].getG() ){
 
 					min_G = grid_map[newy-1][newx-1].getG();
 					finX = newx; finY = newy;
@@ -246,18 +243,26 @@ static void planner(
 
 		// optPath.pop();
 		optPath.pop();
-		// mexPrintf("Plan executed \n");
-		newposeX = optPath.top().getX();
-		newposeY = optPath.top().getY();
+		if (!optPath.empty()){
+			// mexPrintf("Plan executed \n");
+			newposeX = optPath.top().getX();
+			newposeY = optPath.top().getY();
+		}
+		else{
+			mexPrintf("opt path is empty \n");
+			newposeX = robotposeX;
+			newposeY = robotposeY;
+		}
+
 
 		// begin binary seach for next target point
 		if (l_binary <= r_binary){
 
 			if (del_t==0){
-				mexPrintf("del_t = 0, Plan executed \n");
-				action_ptr[0] = newposeX;
-			    action_ptr[1] = newposeY;
-				return;
+				// mexPrintf("del_t = 0, Plan executed \n");
+			// 	action_ptr[0] = newposeX;
+			//     action_ptr[1] = newposeY;
+			// 	return;
 			}
 
 			else if(del_t > 0)
@@ -283,16 +288,24 @@ static void planner(
 	// 	optPath.pop();
 	// }
 
-	if ( euclidDist(robotposeX, robotposeY, target_traj[curr_time], target_traj[curr_time+target_steps]) <= 10 ){
+	// if ( euclidDist(robotposeX, robotposeY, target_traj[curr_time], target_traj[curr_time+target_steps]) <= 2){
 
-		// mexPrintf("Converged \n");
-		// mexPrintf("Plan executed \n");
-		newposeX = optPath.top().getX();
-		newposeY = optPath.top().getY();
-		optPath.pop();
-	}
+	// 	// mexPrintf("Converged \n");
+	// 	// mexPrintf("Plan executed \n");
+	// 	if (!optPath.empty()){
 
-	// if (robotposeX==target_traj[curr_time])
+	// 		newposeX = optPath.top().getX();
+	// 		newposeY = optPath.top().getY();
+	// 		optPath.pop();
+	// 	}
+	// 	else{
+
+	// 		newposeX = robotposeX;
+	// 		newposeY = robotposeY;
+	// 	}
+	// }
+
+	// // if (robotposeX==target_traj[curr_time])
 
 	// mexPrintf("newpose is : %d %d \n", newposeX, newposeY);
 	action_ptr[0] = newposeX;
