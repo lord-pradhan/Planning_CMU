@@ -13,6 +13,9 @@
 #include <iterator>
 #include <limits>
 #include <bits/stdc++.h> 
+#include <algorithm> 
+#include <chrono> 
+using namespace std::chrono;
 
 using namespace std;
 
@@ -123,7 +126,7 @@ static void planner(
         double* action_ptr
         )
 {
-
+	auto start = high_resolution_clock::now();
 	function_call++;
 
 	// ********** New Planner *********
@@ -231,7 +234,7 @@ static void planner(
 			int del_t = -(curr_time + optPath.size() - i );
 			int x_end = target_traj[i]; int y_end = target_traj[i+target_steps];
 
-			if (del_t > 0 && (g_path > grid_map[ y_end - 1 ][ x_end - 1 ].getG()
+			if (del_t >= 0 && (g_path > grid_map[ y_end - 1 ][ x_end - 1 ].getG()
 								+ del_t * (int)map[GETMAPINDEX(x_end,y_end,x_size,y_size)] ) ){
 
 				g_path = grid_map[ y_end - 1 ][ x_end - 1 ].getG()
@@ -243,9 +246,12 @@ static void planner(
 			}
 
 		}
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<milliseconds>(stop - start);
+	mexPrintf("del_t is %d \n", final_del_t);
+	mexPrintf("Final traj index is %d \n", final_traj_index);
+	mexPrintf("Duration is %d \n", duration.count());
 	}
-	// mexPrintf("del_t is %d \n", final_del_t);
-	// mexPrintf("Final traj index is %d \n", final_traj_index);
 
 	int newposeX, newposeY;
 
