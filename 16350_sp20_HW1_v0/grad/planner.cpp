@@ -45,8 +45,13 @@ using namespace std;
 
 #define NUMOFDIRS 8
 
-int l_binary = -100;
-int r_binary = -100;
+// int l_binary = -100;
+// int r_binary = -100;
+int target_point = -100;
+int num_searches = 200;
+int function_call= 0;
+double cost_iter;
+double min_cost_iter = numeric_limits<double>::infinity();
 
 // class OpenSet{
 
@@ -99,6 +104,7 @@ struct CompareF{
     }
 };
 
+
 stack <State> optPath;
 
 static void planner(
@@ -118,23 +124,18 @@ static void planner(
 {
 	auto start = high_resolution_clock::now();
 	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<microseconds>(stop - start);
+	auto duration = duration_cast<milliseconds>(stop - start);
 
 	int newposeX = robotposeX; int newposeY = robotposeY;
 	// mexPrintf("Target steps are %d \n", target_steps);
 
-
-	if (l_binary == -100){l_binary = curr_time;}
-	if (r_binary== -100){r_binary = target_steps;}
+	if(target_point==-100){target_point = target_steps-1;}
 
 	// if robot reaches, wait there
 
-	while( duration.count() < 999 ){ //&& l_binary <= r_binary
+	while( duration.count() < 990 && target_point > curr_time ){ //&& l_binary <= r_binary){
 	// euclidDist(robotposeX, robotposeY, 
 	// target_traj[curr_time], target_traj[curr_time+target_steps]) > 2){ // // optPath.pop();
-
-		int target_point = ceil(l_binary + (r_binary - l_binary)/2);
-		// mexPrintf("target point is %d \n", target_point);
 
 	    // mexPrintf("Started program");
 	    // 8-connected grid
@@ -154,9 +155,9 @@ static void planner(
 		vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
 
 		// initialize start state
-		grid_map[robotposeY-1][ robotposeX - 1 ].setG(0.0);
+		grid_map[robotposeY-1][ robotposeX - 1].setG(0.0);
 
-		// initialize map
+		// initialize map **** make static to optimize ****
 		for (int i =0; i<y_size; i++){
 			for (int j=0; j<x_size; j++){
 
@@ -212,19 +213,20 @@ static void planner(
 		}
 
 		// start backtracking
-		// stack <State> optPath;
-		optPath.push(grid_map[ target_traj[target_point+target_steps] - 1 ][ target_traj[target_point] - 1]);
+		stack <State> newOptPath;
+		newOptPath.push(grid_map[ target_traj[target_point+target_steps] - 1 ][ target_traj[target_point] - 1]);
+		double g_path = grid_map[ target_traj[target_point+target_steps] - 1 ][ target_traj[target_point] - 1].getG();
 
-		while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() 
-			!= grid_map[robotposeY-1][robotposeX-1].getY() ) && !optPath.empty() ){
+		while( (newOptPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || newOptPath.top().getY() 
+			!= grid_map[robotposeY-1][robotposeX-1].getY() ) && !newOptPath.empty() ){
 
 			double min_G = numeric_limits<double>::infinity(); 
 			int finX, finY;
 
 			for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
 
-		        int newx = optPath.top().getX() + dX[dir1];
-		        int newy = optPath.top().getY() + dY[dir1];
+		        int newx = newOptPath.top().getX() + dX[dir1];
+		        int newy = newOptPath.top().getY() + dY[dir1];
 
 		        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && 
 		        	min_G > grid_map[newy-1][newx-1].getG() ){
@@ -232,16 +234,29 @@ static void planner(
 					min_G = grid_map[newy-1][newx-1].getG();
 					finX = newx; finY = newy;
 		        }
-
 		    }
 		   
-		    optPath.push(grid_map[finY-1][finX-1]);
+		    newOptPath.push(grid_map[finY-1][finX-1]);
 		    back_ct++;
 		}
 
-		int del_t = target_point - curr_time - optPath.size(); //time that robot has to wait there
+		int del_t = target_point - curr_time - newOptPath.size(); //time that robot has to wait there
+		int temp1_x = target_traj[target_point] ; int temp1_y = target_traj[target_point+target_steps];
+		double temp_cost = g_path + del_t*(int)map[GETMAPINDEX( temp1_x, temp1_y ,x_size,y_size)];
 
-		// optPath.pop();
+		if(del_t > 0){
+
+			if(min_cost_iter > temp_cost ){
+
+				min_cost_iter = temp_cost;
+				optPath = newOptPath;
+				mexPrintf("Copy done \n");
+			}
+		}
+
+		target_point -= floor(target_steps / num_searches);
+		mexPrintf("target point is %d \n", target_point);
+
 		optPath.pop();
 		if (!optPath.empty()){
 			// mexPrintf("Plan executed \n");
@@ -255,28 +270,11 @@ static void planner(
 		}
 
 
-		// begin binary seach for next target point
-		if (l_binary <= r_binary){
-
-			if (del_t==0){
-				// mexPrintf("del_t = 0, Plan executed \n");
-			// 	action_ptr[0] = newposeX;
-			//     action_ptr[1] = newposeY;
-			// 	return;
-			}
-
-			else if(del_t > 0)
-				r_binary = target_point - 1;
-
-			else 
-				l_binary = target_point +1;
-	
-		}
-
 		// mexPrintf("Robot pose  %d  %d  \n" , robotposeX, robotposeY);
 		// mexPrintf("Next pose %d  %d  \n", newposeX, newposeY);
 	    stop = high_resolution_clock::now();
-	    duration = duration_cast<microseconds>(stop - start);
+	    duration = duration_cast<milliseconds>(stop - start);
+	    mexPrintf("Duration is %d \n", duration.count());
 	}
 
 	// if (l_binary>r_binary){
@@ -288,7 +286,6 @@ static void planner(
 	// 	optPath.pop();
 	// }
 
-	// if ( euclidDist(robotposeX, robotposeY, target_traj[curr_time], target_traj[curr_time+target_steps]) <= 2){
 
 	// 	// mexPrintf("Converged \n");
 	// 	// mexPrintf("Plan executed \n");
@@ -308,6 +305,8 @@ static void planner(
 	// // if (robotposeX==target_traj[curr_time])
 
 	// mexPrintf("newpose is : %d %d \n", newposeX, newposeY);
+	function_call++;
+
 	action_ptr[0] = newposeX;
     action_ptr[1] = newposeY;
 	return;
