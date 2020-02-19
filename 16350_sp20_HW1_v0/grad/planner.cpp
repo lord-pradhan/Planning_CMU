@@ -40,35 +40,45 @@ using namespace std;
 #define	MIN(A, B)	((A) < (B) ? (A) : (B))
 #endif
 
-#define NUMOFDIRS 8
+#define NUMOFDIRS 9
 
-// class OpenSet{
 
-// };
+// define required classes
 
+class TrajPoint{
+
+private:
+	int traj_id;
+	double g_value;
+
+public:
+	int getTrajID() const{return traj_id;}
+	double getGVal() const{return g_value;}
+
+	void setTrajID(int traj_id_){traj_id = traj_id_;}
+	void setGVal(double g_value_){g_value = g_value_;}
+};	
+
+
+// State class is the representation of the grid
 class State{
 
 private:
 	int x_grid, y_grid;
 	double g_val;
-	double h_val;
-
+	// double h_val;
 	bool expanded;
 
 public:
 
 	State(): expanded(false){
-		// bool optPath = 0;
+
 		g_val = numeric_limits<double>::infinity();
 	}
 
-	// ~State(){ numeric_limits<double>::infinity()
-
-	// }
-
 	int getX() const {return x_grid;} 
 	int getY() const {return y_grid;} 
-	double getH() const {return h_val;} 
+
 	double getG() const {return g_val;} 
 	bool getExpanded() const {return expanded;} 
 
@@ -78,21 +88,24 @@ public:
 		g_val = g_val_;
 	}
 
-	void setH(int goalposeX, int goalposeY){
-		h_val = (double)sqrt(((x_grid - goalposeX)*(x_grid-goalposeX) + (y_grid-goalposeY)*(y_grid-goalposeY)));
-	}
-
 	void expand(){ expanded = true; return; }
-
 };
 
-struct CompareF{
+
+// compare struct for the priority queue
+struct CompareF_pre{
     bool operator()(State const & s1, State const & s2) {
         // return "true" if "p1" is ordered before "p2", for example:
-        long eps = 1;
-        return eps*s1.getH() + s1.getG() > eps*s2.getH() + s2.getG();
+        return s1.getG() >  s2.getG();
     }
 };
+
+
+// define global variables
+int function_call =0;
+stack <State> finalOptPath;
+int final_del_t;
+int final_traj_index;
 
 
 static void planner(
@@ -110,114 +123,151 @@ static void planner(
         double* action_ptr
         )
 {
-    // mexPrintf("Started program");
-    // 8-connected grid
-    int dX[NUMOFDIRS] = {-1, -1, -1,  0,  0,  1, 1, 1};
-    int dY[NUMOFDIRS] = {-1,  0,  1, -1,  1, -1, 0, 1}; 
+
+	function_call++;
+
+	// ********** New Planner *********
+
+	if (function_call==1){
+
+	    // 9-connected grid
+	    int dX[NUMOFDIRS] = {0, -1, -1, -1,  0,  0,  1, 1, 1};
+	    int dY[NUMOFDIRS] = {0, -1,  0,  1, -1,  1, -1, 0, 1}; 
 
 
-    // ********** New Planner *********
-    // declare variables
-    int t_ct = 0;
-    int back_ct=0;
+		// Run Dijsktraa's first
+	    State state_init;
+		vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
 
-    State state_init;
-	vector<vector<State> > grid_map(y_size, vector<State>(x_size, state_init));
+		// initialize start state
+		grid_map[robotposeY-1][ robotposeX - 1 ].setG(0.0);
 
-	// initialize start state
-	grid_map[robotposeY-1][ robotposeX - 1 ].setG(0.0);
+		// initialize map
+		for (int i =0; i<y_size; i++){
+			for (int j=0; j<x_size; j++){
 
-	// initialize map
-	for (int i =0; i<y_size; i++){
-		for (int j=0; j<x_size; j++){
+				grid_map[i][j].setX(j+1);
+				grid_map[i][j].setY(i+1);
+			}
+		}
 
-			grid_map[i][j].setX(j+1);
-			grid_map[i][j].setY(i+1);
+		// initialize open list
+		priority_queue <State, vector<State>, CompareF_pre> open_set_pre;
+		open_set_pre.push( grid_map[robotposeY-1][robotposeX-1] );
 
-			grid_map[i][j].setH(target_traj[curr_time+1], target_traj[curr_time+1+target_steps]);
+
+		// start while loop for Dijkstraa expansion, update all G values
+		while( !open_set_pre.empty() ){
+
+			State temp = open_set_pre.top();
+			int x_temp = temp.getX();
+			int y_temp = temp.getY();
+			double g_temp = temp.getG();
+			grid_map[y_temp-1][x_temp-1].expand();
+
+			// remove smallest S from open
+			open_set_pre.pop();
+
+			// // span through successors at next time step
+
+			for(int dir = 0; dir < NUMOFDIRS; dir++){
+
+		        int newx = x_temp + dX[dir];
+		        int newy = y_temp + dY[dir];
+
+		        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
+		        {
+		            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && 
+		            ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && 
+		            (!grid_map[newy-1][newx-1].getExpanded()) )  //if free
+		            {
+
+		            	if( grid_map[newy-1][newx-1].getG() > g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
+
+							grid_map[newy-1][newx-1].setG(g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
+							open_set_pre.push(grid_map[newy-1][newx-1]);
+		            	}
+		            }
+		        }
+		    }
+		}
+
+		// mexPrintf("Dijkstraa expansion done \n");
+
+		// look for minimum cost point on target_traj
+		double g_path = numeric_limits<double>::infinity();
+		while(!finalOptPath.empty()){finalOptPath.pop();}
+
+		for (int i=0; i<target_steps; i++){
+
+			stack <State> optPath;
+
+			// push point on traj
+			optPath.push(grid_map[  target_traj[i+target_steps] - 1 ][ target_traj[i] - 1]);
+
+			while( optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() 
+				!= grid_map[robotposeY-1][robotposeX-1].getY() ){
+
+				double min_G = numeric_limits<double>::infinity(); 
+				int finX, finY;
+
+				for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
+
+			        int newx = optPath.top().getX() + dX[dir1];
+			        int newy = optPath.top().getY() + dY[dir1];
+
+			        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
+
+						min_G = grid_map[newy-1][newx-1].getG();
+						finX = newx; finY = newy;
+			        }
+
+			    }
+			   
+			    optPath.push(grid_map[finY-1][finX-1]);
+			}
+
+			// time robot has to wait at final spot
+			int del_t = -(curr_time + optPath.size() - i );
+			int x_end = target_traj[i]; int y_end = target_traj[i+target_steps];
+
+			if (del_t > 0 && (g_path > grid_map[ y_end - 1 ][ x_end - 1 ].getG()
+								+ del_t * (int)map[GETMAPINDEX(x_end,y_end,x_size,y_size)] ) ){
+
+				g_path = grid_map[ y_end - 1 ][ x_end - 1 ].getG()
+								+ del_t * (int)map[GETMAPINDEX(x_end,y_end,x_size,y_size)];
+
+				finalOptPath = optPath;
+				final_del_t = del_t;
+				final_traj_index = i;
+			}
+
 		}
 	}
+	// mexPrintf("del_t is %d \n", final_del_t);
+	// mexPrintf("Final traj index is %d \n", final_traj_index);
 
+	int newposeX, newposeY;
 
-	// initialize open list
-	priority_queue <State, vector<State>, CompareF> open_set;
-	open_set.push( grid_map[robotposeY-1][robotposeX-1] );
+	// if reached final point
+	if ( (robotposeX == target_traj[final_traj_index] && robotposeY == target_traj[final_traj_index+target_steps]) ||
+		finalOptPath.size()<=1 ){
 
-	// mexPrintf("starting while loop\n");
+		newposeX = robotposeX;
+		newposeY = robotposeY;
+	}
+	else{ // else keep moving
 
-	// start while loop for A* expansion
-	while( !grid_map[ (int) target_traj[curr_time+1+target_steps] - 1 ][ (int) target_traj[curr_time+1] -1 ].getExpanded() && !open_set.empty() ){
-
-		State temp = open_set.top();
-		int x_temp = temp.getX();
-		int y_temp = temp.getY();
-		double g_temp = temp.getG();
-		grid_map[y_temp-1][x_temp-1].expand();
-
-		// remove smallest S from open
-		open_set.pop();
-
-		// span through successors at next time step
-		t_ct++;
-
-		for(int dir = 0; dir < NUMOFDIRS; dir++){
-
-	        int newx = x_temp + dX[dir];
-	        int newy = y_temp + dY[dir];
-
-	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size)
-	        {
-	            if (((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] >= 0) && ((int)map[GETMAPINDEX(newx,newy,x_size,y_size)] < collision_thresh) && (!grid_map[newy-1][newx-1].getExpanded()) )  //if free
-	            {
-
-	            	if( grid_map[newy-1][newx-1].getG() > g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)] ){
-
-						grid_map[newy-1][newx-1].setG(g_temp + (int)map[GETMAPINDEX(newx,newy,x_size,y_size)]);
-						open_set.push(grid_map[newy-1][newx-1]);
-	            	}
-	            }
-	        }
-	    }
-
+		finalOptPath.pop();
+		newposeX = finalOptPath.top().getX();
+		newposeY = finalOptPath.top().getY();
 	}
 
-	// start backtracking
-	stack <State> optPath;
-	optPath.push(grid_map[  target_traj[curr_time+1+target_steps] - 1 ][ target_traj[curr_time+1] - 1]);
 
-	while( (optPath.top().getX() != grid_map[robotposeY-1][robotposeX-1].getX() || optPath.top().getY() 
-		!= grid_map[robotposeY-1][robotposeX-1].getY() ) && back_ct < 790000 ){
-
-		double min_G = numeric_limits<double>::infinity(); 
-		int finX, finY;
-
-		for(int dir1 = 0; dir1 < NUMOFDIRS; dir1++){
-
-	        int newx = optPath.top().getX() + dX[dir1];
-	        int newy = optPath.top().getY() + dY[dir1];
-
-	        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
-
-				min_G = grid_map[newy-1][newx-1].getG();
-				finX = newx; finY = newy;
-	        }
-
-	    }
-	   
-	    optPath.push(grid_map[finY-1][finX-1]);
-
-	    back_ct++;
-	}
-
-	optPath.pop();
-	int newposeX = optPath.top().getX();
-	int newposeY = optPath.top().getY();
-	// mexPrintf("Robot pose  %d  %d  \n" , robotposeX, robotposeY);
-	// mexPrintf("Next pose %d  %d  \n", newposeX, newposeY);
-
+	// mexPrintf("Commanded pose is %d %d \n", newposeX, newposeY);
     action_ptr[0] = newposeX;
     action_ptr[1] = newposeY;
-    
+
     return;
 }
 
