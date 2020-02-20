@@ -248,9 +248,9 @@ static void planner(
 		}
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<milliseconds>(stop - start);
-	mexPrintf("del_t is %d \n", final_del_t);
-	mexPrintf("Final traj index is %d \n", final_traj_index);
-	mexPrintf("Duration is %d \n", duration.count());
+	// mexPrintf("del_t is %d \n", final_del_t);
+	// mexPrintf("Final traj index is %d \n", final_traj_index);
+	// mexPrintf("Duration is %d \n", duration.count());
 	}
 
 	int newposeX, newposeY;
