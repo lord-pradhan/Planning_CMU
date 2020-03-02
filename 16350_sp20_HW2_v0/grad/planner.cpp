@@ -5,6 +5,7 @@
  *=================================================================*/
 #include <math.h>
 #include "mex.h"
+#include "kdtree.h"
 
 /* Input Arguments */
 #define	MAP_IN      prhs[0]
@@ -206,6 +207,8 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
     return 1;
 }
 
+
+// All planners reside here
 static void planner(
 		   double*	map,
 		   int x_size,
@@ -248,6 +251,85 @@ static void planner(
     }    
     *planlength = numofsamples;
     
+    return;
+}
+
+
+static void plannerPRM(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+
+	
+
+    
+    return;
+}
+
+
+static void plannerRRT(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+ 
+	
+
+    return;
+}
+
+
+static void plannerRRT_star(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+    
+
+    
+    return;
+}
+
+
+static void plannerRRT_connect(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+        
     return;
 }
 
@@ -301,14 +383,31 @@ void mexFunction( int nlhs, mxArray *plhs[],
     double** plan = NULL;
     int planlength = 0;
     
-    //you can may be call the corresponding planner function here
-    //if (planner_id == RRT)
-    //{
-    //    plannerRRT(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
-    //}
-    
+    // you can may be call the corresponding planner function here
+    if (planner_id == PRM)
+    {
+       plannerPRM(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
+    }
+
+    if (planner_id == RRT)
+    {
+       plannerRRT(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
+    }
+ 
+    if (planner_id == RRT_star)
+    {
+       plannerRRT_star(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
+    }
+
+    if (planner_id == RRT_connect)
+    {
+       plannerRRT_connect(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
+    }
+
     //dummy planner which only computes interpolated path
-    planner(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength); 
+    if (planner_id == 0){
+	    planner(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength); 
+	}
     
     printf("planner returned plan of length=%d\n", planlength); 
     
