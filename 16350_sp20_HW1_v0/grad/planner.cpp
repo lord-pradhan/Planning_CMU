@@ -43,7 +43,7 @@ using namespace std;
 #define	MIN(A, B)	((A) < (B) ? (A) : (B))
 #endif
 
-#define NUMOFDIRS 9
+#define NUMOFDIRS 8
 
 
 // define required classes
@@ -134,8 +134,8 @@ static void planner(
 	if (function_call==1){
 
 	    // 9-connected grid
-	    int dX[NUMOFDIRS] = {0, -1, -1, -1,  0,  0,  1, 1, 1};
-	    int dY[NUMOFDIRS] = {0, -1,  0,  1, -1,  1, -1, 0, 1}; 
+	    int dX[NUMOFDIRS] = { -1, -1, -1,  0,  0,  1, 1, 1};
+	    int dY[NUMOFDIRS] = { -1,  0,  1, -1,  1, -1, 0, 1}; 
 
 
 		// Run Dijsktraa's first
@@ -195,13 +195,16 @@ static void planner(
 		    }
 		}
 
-		// mexPrintf("Dijkstraa expansion done \n");
+		mexPrintf("Dijkstraa expansion done \n");
 
 		// look for minimum cost point on target_traj
 		double g_path = numeric_limits<double>::infinity();
+		cout<<"target steps "<<target_steps<<endl;
+
+		//clear optPath
 		while(!finalOptPath.empty()){finalOptPath.pop();}
 
-		for (int i=0; i<target_steps; i++){
+		for (int i=1; i<target_steps; i++){
 
 			stack <State> optPath;
 
@@ -219,22 +222,23 @@ static void planner(
 			        int newx = optPath.top().getX() + dX[dir1];
 			        int newy = optPath.top().getY() + dY[dir1];
 
-			        if (newx >= 1 && newx <= x_size && newy >= 1 && newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
+			        if (newx >= 1 && newx <= x_size && newy >= 1 && 
+			        	newy <= y_size && min_G > grid_map[newy-1][newx-1].getG() ){
 
 						min_G = grid_map[newy-1][newx-1].getG();
+						// cout<<"min_g is "<<min_G<<endl;
 						finX = newx; finY = newy;
 			        }
-
 			    }
 			   
 			    optPath.push(grid_map[finY-1][finX-1]);
 			}
 
 			// time robot has to wait at final spot
-			int del_t = -(curr_time + optPath.size() - i );
+			int del_t = -( curr_time + optPath.size() - i );
 			int x_end = target_traj[i]; int y_end = target_traj[i+target_steps];
 
-			if (del_t >= 0 && (g_path > grid_map[ y_end - 1 ][ x_end - 1 ].getG()
+			if ( optPath.size() >0 && del_t >= 0 && (g_path > grid_map[ y_end - 1 ][ x_end - 1 ].getG()
 								+ del_t * (int)map[GETMAPINDEX(x_end,y_end,x_size,y_size)] ) ){
 
 				g_path = grid_map[ y_end - 1 ][ x_end - 1 ].getG()
@@ -244,13 +248,15 @@ static void planner(
 				final_del_t = del_t;
 				final_traj_index = i;
 			}
-
 		}
+
+	cout<<"size of path "<< finalOptPath.size() <<endl;
+	cout<<"cost of path "<< g_path <<endl;
 	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<milliseconds>(stop - start);
-	// mexPrintf("del_t is %d \n", final_del_t);
-	// mexPrintf("Final traj index is %d \n", final_traj_index);
-	// mexPrintf("Duration is %d \n", duration.count());
+	auto duration = duration_cast<microseconds>(stop - start);
+	mexPrintf("del_t is %d \n", final_del_t);
+	mexPrintf("Final traj index is %d \n", final_traj_index);
+	mexPrintf("Duration is %d \n", duration.count());
 	}
 
 	int newposeX, newposeY;
@@ -270,7 +276,7 @@ static void planner(
 	}
 
 
-	// mexPrintf("Commanded pose is %d %d \n", newposeX, newposeY);
+	mexPrintf("Commanded pose is %d %d \n", newposeX, newposeY);
     action_ptr[0] = newposeX;
     action_ptr[1] = newposeY;
 
