@@ -5,19 +5,21 @@
  *=================================================================*/
 #include <math.h>
 #include "mex.h"
-#include "kdtree.h"
+// #include "kdtree.h"
 #include <time.h> 
 #include <random>
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <algorithm>
 #include <vector>
+#include "utilheader.h"
 
 /* Input Arguments */
 #define	MAP_IN      prhs[0]
 #define	ARMSTART_IN	prhs[1]
 #define	ARMGOAL_IN     prhs[2]
 #define	PLANNER_ID_IN     prhs[3]
+
 
 /* Planner Ids */
 #define RRT         0
@@ -213,138 +215,14 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
     return 1;
 }
 
-// define classes needed
-class NodePRM{
 
-private:
-  int elemId;
-  std::vector <int> adjIDs;
-  std::vector <double> elemCoords;
-
-public:
-  NodePRM() {}
-
-// Get stuff
-  double getNthCoord( int n ) const{
-
-    return elemCoords.at(n-1);    
-  }
-
-  std::vector <double> getCoords() const{
-
-    return elemCoords;
-  }
-
-  int getID() const{
-
-    return elemId;
-  }
-
-  std::vector<int> getAdjIDs() const{
-
-    return adjIDs;
-  }
-
-// Set stuff
-  void setCoord(std::vector <double> coordsIn){
-
-    elemCoords = coordsIn;
-  }
-
-  void insertAdj(int adjID_){
-
-    adjIDs.push_back( adjID_ );
-  }
-
-  void setElemID(int elemId_){
-
-    elemId = elemId_;
-  }
-
-
+struct CompareF{
+    bool operator()(NodePRM const & n1, NodePRM const & n2) {
+        // return "true" if "p1" is ordered before "p2", for example:
+        long eps = 1;
+        return n1.getG() >  n2.getG();
+    }
 };
-
-// define useful functions
-double randomDouble( double LB, double UB ){
-
-  std::uniform_real_distribution<double> unif(LB,UB);
-  std::default_random_engine re;
-  return unif(re);
-}
-
-double distanceFn( NodePRM node1, NodePRM node2 ){
-
-  std::vector<double> difference;
-  std::transform( node1.getCoords.begin(), node1.getCoords.end(), node2.getCoords.begin(), 
-    difference.begin() , std::minus<double>());
-
-  double distance=0;
-  for (auto i : difference){
-
-    distance += i*i;
-  }
-
-  return distance;
-}
-
-
-bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<NodePRM> listOfNodesIn ){
-
-  std::stack <NodePRM> stackDFS;
-  std::vector<bool> visited( listOfNodesIn.size() , false );
-
-  stackDFS.push(pushNodeIn);
-
-  while(!stackDFS.empty()){
-
-    NodePRM topNode = stackDFS.top();
-    stackDFS.pop();
-
-    if (!visited[ topNode.getID() ]){
-
-      visited[ topNode.getID() ] = true;
-    }
-
-    for( auto i : topNode.getAdjIDs() ){
-
-      if( !visited[i] ){
-
-        if( pushNodeIn.getID() == i )
-          return true;
-
-        else
-          stackDFS.push( listOfNodesIn[i] );
-      }
-    }
-  }
-  
-  return false;
-}
-
-
-bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, int x_size, int y_size){
-
-	int numChecks = 20;
-
-	for(int i = 0; i<numChecks; i++){
-
-		std::vector<double> xVals;
-
-		for(int j = 0; j< pushNodeIn.getCoords().size() ; j++){
-
-			xVals[j] = pushNodeIn.getCoords()[j] + i * 
-					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / 20.0;
-		}
-
-		double anglesArr[ pushNodeIn.getCoords().size() ];
-		std::copy( xVals.begin(), xVals.end(), anglesArr );
-
-		if(!IsValidArmConfiguration( anglesArr, pushNodeIn.getCoords.size(), map, x_size, y_size) )
-			return false;
-	}
-
-	return true;
-}
 
 
 
@@ -441,7 +319,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       // check connected or not
       for (auto i1_node : neighbours){
 
-        if( !same_component( pushNode, i1_node ) && can_connect( pushNode, i1_node ) ){
+        if( !same_component( pushNode, i1_node ) && can_connect( pushNode, i1_node, map, x_size, y_size ) ){
 
           pushNode.insertAdj( i1_node.getID() );
           i1_node.insertAdj( pushNode.getID() );
@@ -453,10 +331,148 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     }
   }
 
-  // graph constructed. A* below
+  // post-processing done, now find nearest neighbours for start and goal (Query phase)
+  std::stack<NodePRM> start_stack, end_stack;
+  NodePRM startNode, endNode;
 
-    
-    return;
+  std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
+  std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+
+  startNode.setCoord( startCoord );
+  startNode.setElemID(elemCt);
+  elemCt++;
+  listOfNodes.push_back(startNode);
+
+  endNode.setCoord( endCoord );
+  endNode.setElemID(elemCt);
+  elemCt++;
+  listOfNodes.push_back(endNode);
+
+  int minStart=0, minEnd=0;
+
+  for( auto i_node : listOfNodes ){
+
+  	double startDist = distanceFn( i_node, startNode );
+  	double endDist = distanceFn( i_node, endNode );
+
+  	if ( startDist < distanceFn( listOfNodes[minStart], startNode ) ){
+  		
+  		minStart = i_node.getID();
+  		start_stack.push( i_node );
+  	}
+
+		if ( endDist < distanceFn( listOfNodes[minEnd], endNode ) ){
+  		
+  		minEnd = i_node.getID();
+  		end_stack.push( i_node );
+  	}  	
+  }
+
+
+  while(!start_stack.empty()){
+
+  	if( can_connect( startNode, start_stack.top(), map, x_size, y_size ) ){
+  		
+  		startNode.insertAdj( start_stack.top().getID() );
+      start_stack.top().insertAdj( startNode.getID() );
+  		break;
+  	}
+  	else
+  		start_stack.pop();
+
+  }
+
+  while(!end_stack.empty()){
+
+  	if( can_connect( endNode, end_stack.top(), map, x_size, y_size ) ){
+  		
+  		endNode.insertAdj( end_stack.top().getID() );
+      end_stack.top().insertAdj( endNode.getID() );
+  		break;
+  	}
+  	else
+  		end_stack.pop();
+
+  }
+
+  // Query done, now search graph using Dijkstraa's
+  std::priority_queue< NodePRM , std::vector<NodePRM>, CompareF > open_set;
+  startNode.setG(0.0);
+  open_set.push( startNode );
+
+  while( !endNode.isExpanded() && !open_set.empty()){
+
+  	NodePRM temp = open_set.top();
+  	open_set.pop();
+
+  	for(auto succesor : temp.getAdjIDs() ){
+
+  		if( listOfNodes[succesor].getG() > temp.getG() + distanceFn( temp, listOfNodes[succesor] ) ){
+
+  			listOfNodes[succesor].setG( temp.getG() + distanceFn( temp, listOfNodes[succesor] ) );
+  			open_set.push(listOfNodes[succesor]);
+  		}
+  	}
+  }
+
+  // start backtracking
+  std::stack<NodePRM> optPath;
+  optPath.push( endNode );
+
+  while(optPath.top().getID() != startNode.getID() ){
+
+  	double min_G = numeric_limits<double>::infinity(); 
+  	int finID;
+  	NodePRM temp1 = optPath.top();
+
+  	for( auto succesor : temp1.getAdjIDs() ){
+
+  		if(min_G > temp1.getG() + distanceFn( listOfNodes[succesor], temp1 ) ){
+
+  			min_G = temp1.getG() + distanceFn( listOfNodes[succesor], temp1 );
+  			finID = listOfNodes[succesor].getID();
+  		}
+  	}
+
+  	optPath.push( listOfNodes[finID] );
+  }
+
+  optPath.pop();
+  *planlength = optPath.size();
+
+  *plan = (double**) malloc(optPath.size() *sizeof(double*));
+  for(int i=0; i < optPath.size(); i++ ){
+
+  	(*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+  	for(int j=0; j< numofDOFs; j++){
+
+  		(*plan)[i][j] = optPath.top().getNthCoord(j);
+  	}
+
+  	optPath.pop();
+  }
+
+
+
+
+
+// *plan = (double**) malloc(numofsamples *sizeof(double*));
+//    int firstinvalidconf = 1;
+//   for (i = 0; i < numofsamples; i++){
+//       (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+//       for(j = 0; j < numofDOFs; j++){
+//           (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
+//       }
+//       if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
+//       {
+//           firstinvalidconf = 1;
+//           printf("ERROR: Invalid arm configuration!!!\n");
+//       }
+//   }    
+//   *planlength = numofsamples;
+
+  return;
 }
 
 
@@ -567,31 +583,32 @@ void mexFunction( int nlhs, mxArray *plhs[],
     double** plan = NULL;
     int planlength = 0;
     
+    
     // you can may be call the corresponding planner function here
-    if (planner_id == PRM)
+    if (planner_id == 3)
     {
        plannerPRM(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
     }
 
-    if (planner_id == RRT)
+    if (planner_id == 0)
     {
        plannerRRT(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
     }
  
-    if (planner_id == RRT_star)
+    if (planner_id == 2)
     {
        plannerRRT_star(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
     }
 
-    if (planner_id == RRT_connect)
+    if (planner_id == 1)
     {
        plannerRRT_connect(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength);
     }
 
     //dummy planner which only computes interpolated path
-    if (planner_id == 0){
-	    planner(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength); 
-	}
+ //    if (planner_id == 0){
+	//     planner(map,x_size,y_size, armstart_anglesV_rad, armgoal_anglesV_rad, numofDOFs, &plan, &planlength); 
+	// }
     
     printf("planner returned plan of length=%d\n", planlength); 
     
