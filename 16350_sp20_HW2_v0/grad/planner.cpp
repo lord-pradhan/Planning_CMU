@@ -12,6 +12,12 @@
 #include <stdlib.h> 
 #include <algorithm>
 #include <vector>
+#include <stack>          // std::stack
+#include <functional>
+#include <queue>
+#include <limits>
+#include <bits/stdc++.h> 
+
 #include "utilheader.h"
 
 /* Input Arguments */
@@ -45,18 +51,6 @@
 
 //the length of each link in the arm (should be the same as the one used in runtest.m)
 #define LINKLENGTH_CELLS 10
-
-typedef struct {
-  int X1, Y1;
-  int X2, Y2;
-  int Increment;
-  int UsingYIndex;
-  int DeltaX, DeltaY;
-  int DTerm;
-  int IncrE, IncrNE;
-  int XIndex, YIndex;
-  int Flipped;
-} bresenham_param_t;// ;
 
 
 void ContXY2Cell(double x, double y, short unsigned int* pX, short unsigned int *pY, int x_size, int y_size)
@@ -319,7 +313,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       // check connected or not
       for (auto i1_node : neighbours){
 
-        if( !same_component( pushNode, i1_node ) && can_connect( pushNode, i1_node, map, x_size, y_size ) ){
+        if( !same_component( pushNode, i1_node, listOfNodes ) && can_connect( pushNode, i1_node, map, x_size, y_size ) ){
 
           pushNode.insertAdj( i1_node.getID() );
           i1_node.insertAdj( pushNode.getID() );
@@ -421,7 +415,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
   while(optPath.top().getID() != startNode.getID() ){
 
-  	double min_G = numeric_limits<double>::infinity(); 
+  	double min_G = std::numeric_limits<double>::infinity(); 
   	int finID;
   	NodePRM temp1 = optPath.top();
 
@@ -582,7 +576,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
     //call the planner
     double** plan = NULL;
     int planlength = 0;
-    
+
     
     // you can may be call the corresponding planner function here
     if (planner_id == 3)

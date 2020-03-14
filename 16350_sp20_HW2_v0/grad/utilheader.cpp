@@ -1,5 +1,7 @@
+#include "utilheader.h"
+#include <stack>
 
-NodePRM::NodePRM(): expanded(false), G_val( numeric_limits<double>::infinity() ){}
+NodePRM::NodePRM(): expanded(false), G_val( std::numeric_limits<double>::infinity() ){}
 
 double NodePRM::getNthCoord( int n ) const{
 
@@ -66,7 +68,7 @@ double randomDouble( double LB, double UB ){
 double distanceFn( NodePRM node1, NodePRM node2 ){
 
   std::vector<double> difference;
-  std::transform( node1.getCoords.begin(), node1.getCoords.end(), node2.getCoords.begin(), 
+  std::transform( node1.getCoords().begin(), node1.getCoords().end(), node2.getCoords().begin(), 
     difference.begin() , std::minus<double>());
 
   double distance=0;
@@ -129,7 +131,7 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, int 
 		double anglesArr[ pushNodeIn.getCoords().size() ];
 		std::copy( xVals.begin(), xVals.end(), anglesArr );
 
-		if(!IsValidArmConfiguration( anglesArr, pushNodeIn.getCoords.size(), map, x_size, y_size) )
+		if(!IsValidArmConfiguration( anglesArr, pushNodeIn.getCoords().size(), map, x_size, y_size) )
 			return false;
 	}
 
