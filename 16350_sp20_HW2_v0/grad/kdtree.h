@@ -11,7 +11,6 @@
 #ifndef KDTREE_H
 #define KDTREE_H
 
-
 /**
  * Class for representing a point. coordinate_type must be a numeric type.
  */
@@ -190,7 +189,21 @@ public:
             nodes_.emplace_back(f());
         root_ = make_tree(0, nodes_.size(), 0);
     }
+
+    // // Empty constructor
+    // kdtree(){}
  
+
+    // // Insert nodes into tree
+    // void insert( std::vector<double> nodeIn, int sizeIn ){
+
+    //     for (double i : nodeIn){
+
+    //         nodes_.emplace_back(i);
+    //     }
+    // }
+
+
     /**
      * Returns true if the tree is empty, false otherwise.
      */

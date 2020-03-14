@@ -6,6 +6,12 @@
 #include <math.h>
 #include "mex.h"
 #include "kdtree.h"
+#include <time.h> 
+#include <random>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <algorithm>
+#include <vector>
 
 /* Input Arguments */
 #define	MAP_IN      prhs[0]
@@ -48,20 +54,20 @@ typedef struct {
   int IncrE, IncrNE;
   int XIndex, YIndex;
   int Flipped;
-} bresenham_param_t;
+} bresenham_param_t;// ;
 
 
 void ContXY2Cell(double x, double y, short unsigned int* pX, short unsigned int *pY, int x_size, int y_size)
 {
-    double cellsize = 1.0;
-	//take the nearest cell
-	*pX = (int)(x/(double)(cellsize));
-	if( x < 0) *pX = 0;
-	if( *pX >= x_size) *pX = x_size-1;
+  double cellsize = 1.0;
+  //take the nearest cell
+  *pX = (int)(x/(double)(cellsize));
+  if( x < 0) *pX = 0;
+  if( *pX >= x_size) *pX = x_size-1;
 
-	*pY = (int)(y/(double)(cellsize));
-	if( y < 0) *pY = 0;
-	if( *pY >= y_size) *pY = y_size-1;
+  *pY = (int)(y/(double)(cellsize));
+  if( y < 0) *pY = 0;
+  if( *pY >= y_size) *pY = y_size-1;
 }
 
 
@@ -207,6 +213,140 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
     return 1;
 }
 
+// define classes needed
+class NodePRM{
+
+private:
+  int elemId;
+  std::vector <int> adjIDs;
+  std::vector <double> elemCoords;
+
+public:
+  NodePRM() {}
+
+// Get stuff
+  double getNthCoord( int n ) const{
+
+    return elemCoords.at(n-1);    
+  }
+
+  std::vector <double> getCoords() const{
+
+    return elemCoords;
+  }
+
+  int getID() const{
+
+    return elemId;
+  }
+
+  std::vector<int> getAdjIDs() const{
+
+    return adjIDs;
+  }
+
+// Set stuff
+  void setCoord(std::vector <double> coordsIn){
+
+    elemCoords = coordsIn;
+  }
+
+  void insertAdj(int adjID_){
+
+    adjIDs.push_back( adjID_ );
+  }
+
+  void setElemID(int elemId_){
+
+    elemId = elemId_;
+  }
+
+
+};
+
+// define useful functions
+double randomDouble( double LB, double UB ){
+
+  std::uniform_real_distribution<double> unif(LB,UB);
+  std::default_random_engine re;
+  return unif(re);
+}
+
+double distanceFn( NodePRM node1, NodePRM node2 ){
+
+  std::vector<double> difference;
+  std::transform( node1.getCoords.begin(), node1.getCoords.end(), node2.getCoords.begin(), 
+    difference.begin() , std::minus<double>());
+
+  double distance=0;
+  for (auto i : difference){
+
+    distance += i*i;
+  }
+
+  return distance;
+}
+
+
+bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<NodePRM> listOfNodesIn ){
+
+  std::stack <NodePRM> stackDFS;
+  std::vector<bool> visited( listOfNodesIn.size() , false );
+
+  stackDFS.push(pushNodeIn);
+
+  while(!stackDFS.empty()){
+
+    NodePRM topNode = stackDFS.top();
+    stackDFS.pop();
+
+    if (!visited[ topNode.getID() ]){
+
+      visited[ topNode.getID() ] = true;
+    }
+
+    for( auto i : topNode.getAdjIDs() ){
+
+      if( !visited[i] ){
+
+        if( pushNodeIn.getID() == i )
+          return true;
+
+        else
+          stackDFS.push( listOfNodesIn[i] );
+      }
+    }
+  }
+  
+  return false;
+}
+
+
+bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, int x_size, int y_size){
+
+	int numChecks = 20;
+
+	for(int i = 0; i<numChecks; i++){
+
+		std::vector<double> xVals;
+
+		for(int j = 0; j< pushNodeIn.getCoords().size() ; j++){
+
+			xVals[j] = pushNodeIn.getCoords()[j] + i * 
+					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / 20.0;
+		}
+
+		double anglesArr[ pushNodeIn.getCoords().size() ];
+		std::copy( xVals.begin(), xVals.end(), anglesArr );
+
+		if(!IsValidArmConfiguration( anglesArr, pushNodeIn.getCoords.size(), map, x_size, y_size) )
+			return false;
+	}
+
+	return true;
+}
+
+
 
 // All planners reside here
 static void planner(
@@ -223,53 +363,97 @@ static void planner(
 	*plan = NULL;
 	*planlength = 0;
     
-    //for now just do straight interpolation between start and goal checking for the validity of samples
+  //for now just do straight interpolation between start and goal checking for the validity of samples
+  double distance = 0;
+  int i,j;
+  for (j = 0; j < numofDOFs; j++){
+      if(distance < fabs(armstart_anglesV_rad[j] - armgoal_anglesV_rad[j]))
+          distance = fabs(armstart_anglesV_rad[j] - armgoal_anglesV_rad[j]);
+  }
+  int numofsamples = (int)(distance/(PI/20));
+  if(numofsamples < 2){
+      printf("the arm is already at the goal\n");
+      return;
+  }
+  *plan = (double**) malloc(numofsamples*sizeof(double*));
+  int firstinvalidconf = 1;
+  for (i = 0; i < numofsamples; i++){
+      (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+      for(j = 0; j < numofDOFs; j++){
+          (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
+      }
+      if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
+      {
+          firstinvalidconf = 1;
+          printf("ERROR: Invalid arm configuration!!!\n");
+      }
+  }    
+  *planlength = numofsamples;
 
-    double distance = 0;
-    int i,j;
-    for (j = 0; j < numofDOFs; j++){
-        if(distance < fabs(armstart_anglesV_rad[j] - armgoal_anglesV_rad[j]))
-            distance = fabs(armstart_anglesV_rad[j] - armgoal_anglesV_rad[j]);
-    }
-    int numofsamples = (int)(distance/(PI/20));
-    if(numofsamples < 2){
-        printf("the arm is already at the goal\n");
-        return;
-    }
-    *plan = (double**) malloc(numofsamples*sizeof(double*));
-    int firstinvalidconf = 1;
-    for (i = 0; i < numofsamples; i++){
-        (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
-        for(j = 0; j < numofDOFs; j++){
-            (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
-        }
-        if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
-        {
-            firstinvalidconf = 1;
-            printf("ERROR: Invalid arm configuration!!!\n");
-        }
-    }    
-    *planlength = numofsamples;
-    
-    return;
+  return;
 }
 
 
-static void plannerPRM(
-		   double*	map,
-		   int x_size,
- 		   int y_size,
-           double* armstart_anglesV_rad,
-           double* armgoal_anglesV_rad,
-	   int numofDOFs,
-	   double*** plan,
-	   int* planlength)
+static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_anglesV_rad,
+       double* armgoal_anglesV_rad, int numofDOFs, double*** plan,  int* planlength)
 {
-	//no plan by default
-	*plan = NULL;
-	*planlength = 0;
+  // parameters
+  int N_samples = 200;
+  double angleUB = PI, angleLB = -PI;
+  double nbd = 1;
 
-	
+  //initialize
+  int ct=0, elemCt = 0;
+  std::vector <NodePRM> listOfNodes;
+  // srand(time(0));
+
+  while( elemCt < N_samples){
+
+    std::vector <double> currSamplePt;
+
+    // sample a point
+    for (int i = 0; i<numofDOFs; i++){
+
+      currSamplePt.push_back( randomDouble(angleLB, angleUB) );
+    }
+
+    // make an array of doubles for collision checking
+    double anglesArr[ numofDOFs ];
+    std::copy( currSamplePt.begin(), currSamplePt.end(), anglesArr );
+
+    if ( !IsValidArmConfiguration( anglesArr, numofDOFs, map, x_size, y_size) ){
+
+      NodePRM pushNode;
+      pushNode.setElemID(elemCt);
+      pushNode.setCoord( currSamplePt );
+
+      std::vector<NodePRM> neighbours;
+      
+      // find neighbors
+      for (auto i_node : listOfNodes){
+
+        if( distanceFn(pushNode, i_node) < nbd){
+
+          neighbours.push_back( i_node );
+        }
+      }
+
+      // check connected or not
+      for (auto i1_node : neighbours){
+
+        if( !same_component( pushNode, i1_node ) && can_connect( pushNode, i1_node ) ){
+
+          pushNode.insertAdj( i1_node.getID() );
+          i1_node.insertAdj( pushNode.getID() );
+        }
+      }
+
+      listOfNodes.push_back( pushNode );
+      elemCt++;
+    }
+  }
+
+  // graph constructed. A* below
 
     
     return;
