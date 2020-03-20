@@ -291,235 +291,240 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   srand(time(nullptr));
   // srand(time(0));
 
-  mexPrintf("Before first while loop \n");
-  mexEvalString("drawnow");
-
-  int ct1=0;
-  while( elemCt < N_samples && ct1<1000){
-
-    std::vector <double> currSamplePt;
-
-    // sample a point
-    // mexPrintf("numofDOFs is %d \n", numofDOFs);
-    for (int i = 0; i<numofDOFs; i++){
-
-      double temp = randomDouble(angleLB, angleUB);
-      currSamplePt.push_back( temp );
-      // mexPrintf("Current point is %f \n", temp);
-      // mexEvalString("drawnow");
-    }
-
-  //   mexPrintf("Sampled random point \n");
-    // mexEvalString("drawnow");
-
-    // make an array of doubles for collision checking
-    // double anglesArr[ numofDOFs ];
-    // std::copy( currSamplePt.begin(), currSamplePt.end(), anglesArr );
-
-    if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size)==1 ){
-
-   //   mexPrintf("Found valid arm config \n");
-      // mexEvalString("drawnow");
-
-      NodePRM pushNode;
-      pushNode.setElemID(elemCt);
-      pushNode.setCoord( currSamplePt );
-
-      std::vector<NodePRM> neighbours;
-      
-      // find neighbors
-      for (auto i_node : listOfNodes){
-
-        if( distanceFn(pushNode, i_node) < nbd){
-
-          neighbours.push_back( i_node );
-        }
-      }
-
-      // check connected or not
-      if(!neighbours.empty()){
-
-        mexPrintf("neighbours not empty \n");
-        mexEvalString("drawnow");
-        for (auto i1_node : neighbours){
-
-          if( !same_component( pushNode, i1_node, listOfNodes ) && 
-            can_connect( pushNode, i1_node, map, x_size, y_size ) ){
-
-            pushNode.insertAdj( i1_node.getID() );
-            i1_node.insertAdj( pushNode.getID() );
-          }
-        }
-      }
-
-      listOfNodes.push_back( pushNode );
-      elemCt++;
-    }
-
-  //   mexPrintf("Didn't find valid arm config \n");
-    // mexEvalString("drawnow");
-    ct1++;
-  }
-
-  mexPrintf("Exited while loop #1 - %d \n", ct1);
-  mexEvalString("drawnow");
-
-  // post-processing done, now find nearest neighbours for start and goal (Query phase)
-  std::stack<NodePRM> start_stack, end_stack;
-  NodePRM startNode, endNode;
-
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
 
-  mexPrintf("size of start and end vectors - %d and %d \n", startCoord.size(), endCoord.size());
-  mexEvalString("drawnow");
+  if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
+      && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-  startNode.setCoord( startCoord );
-  startNode.setElemID(elemCt);
-  elemCt++;
-  listOfNodes.push_back(startNode);
+    mexPrintf("Before first while loop \n");
+    mexEvalString("drawnow");
 
-  endNode.setCoord( endCoord );
-  endNode.setElemID(elemCt);
-  elemCt++;
-  listOfNodes.push_back(endNode);
+    int ct1=0;
+    while( elemCt < N_samples && ct1<1000){
 
-  int minStart=0, minEnd=0;
+      std::vector <double> currSamplePt;
 
-  mexPrintf("Started for loop #1 \n");
-  mexEvalString("drawnow");
+      // sample a point
+      // mexPrintf("numofDOFs is %d \n", numofDOFs);
+      for (int i = 0; i<numofDOFs; i++){
 
-  for( NodePRM i_node : listOfNodes ){
+        double temp = randomDouble(angleLB, angleUB);
+        currSamplePt.push_back( temp );
+        // mexPrintf("Current point is %f \n", temp);
+        // mexEvalString("drawnow");
+      }
 
-    double startDist = distanceFn( i_node, startNode );
-    double endDist = distanceFn( i_node, endNode );
+    //   mexPrintf("Sampled random point \n");
+      // mexEvalString("drawnow");
 
-    if ( startDist <= distanceFn( listOfNodes[minStart], startNode ) ){
-      
-      minStart = i_node.getID();
-      start_stack.push( i_node );
+      // make an array of doubles for collision checking
+      // double anglesArr[ numofDOFs ];
+      // std::copy( currSamplePt.begin(), currSamplePt.end(), anglesArr );
+
+      if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size)==1 ){
+
+     //   mexPrintf("Found valid arm config \n");
+        // mexEvalString("drawnow");
+
+        NodePRM pushNode;
+        pushNode.setElemID(elemCt);
+        pushNode.setCoord( currSamplePt );
+
+        std::vector<NodePRM> neighbours;
+        
+        // find neighbors
+        for (auto i_node : listOfNodes){
+
+          if( distanceFn(pushNode, i_node) < nbd){
+
+            neighbours.push_back( i_node );
+          }
+        }
+
+        // check connected or not
+        if(!neighbours.empty()){
+
+          mexPrintf("neighbours not empty \n");
+          mexEvalString("drawnow");
+          for (auto i1_node : neighbours){
+
+            if( !same_component( pushNode, i1_node, listOfNodes ) && 
+              can_connect( pushNode, i1_node, map, x_size, y_size ) ){
+
+              pushNode.insertAdj( i1_node.getID() );
+              i1_node.insertAdj( pushNode.getID() );
+            }
+          }
+        }
+
+        listOfNodes.push_back( pushNode );
+        elemCt++;
+      }
+
+    //   mexPrintf("Didn't find valid arm config \n");
+      // mexEvalString("drawnow");
+      ct1++;
     }
 
-    if ( endDist <= distanceFn( listOfNodes[minEnd], endNode ) ){
-      
-      minEnd = i_node.getID();
-      end_stack.push( i_node );
-    }   
-  }
-  mexPrintf("Ended for loop #1 \n");
-  mexEvalString("drawnow");
+    mexPrintf("Exited while loop #1 - %d \n", ct1);
+    mexEvalString("drawnow");
 
-  int ct2 = 0;
-  while( !start_stack.empty() ){//&& ct2<1000 ){
+    // post-processing done, now find nearest neighbours for start and goal (Query phase)
+    std::stack<NodePRM> start_stack, end_stack;
+    NodePRM startNode, endNode;
 
-    if( can_connect( startNode, start_stack.top(), map, x_size, y_size ) ){
-      
-      listOfNodes.end()[-2].insertAdj( start_stack.top().getID() );
-      start_stack.top().insertAdj( listOfNodes.end()[-2].getID() );
+    mexPrintf("size of start and end vectors - %d and %d \n", startCoord.size(), endCoord.size());
+    mexEvalString("drawnow");
+
+    startNode.setCoord( startCoord );
+    startNode.setElemID(elemCt);
+    elemCt++;
+    listOfNodes.push_back(startNode);
+
+    endNode.setCoord( endCoord );
+    endNode.setElemID(elemCt);
+    elemCt++;
+    listOfNodes.push_back(endNode);
+
+    int minStart=0, minEnd=0;
+
+    mexPrintf("Started for loop #1 \n");
+    mexEvalString("drawnow");
+
+    for( NodePRM i_node : listOfNodes ){
+
+      double startDist = distanceFn( i_node, startNode );
+      double endDist = distanceFn( i_node, endNode );
+
+      if ( startDist <= distanceFn( listOfNodes[minStart], startNode ) ){
+        
+        minStart = i_node.getID();
+        start_stack.push( i_node );
+      }
+
+      if ( endDist <= distanceFn( listOfNodes[minEnd], endNode ) ){
+        
+        minEnd = i_node.getID();
+        end_stack.push( i_node );
+      }   
+    }
+    mexPrintf("Ended for loop #1 \n");
+    mexEvalString("drawnow");
+
+    int ct2 = 0;
+    while( !start_stack.empty() ){//&& ct2<1000 ){
+
+      if( can_connect( startNode, start_stack.top(), map, x_size, y_size ) ){
+        
+        listOfNodes.end()[-2].insertAdj( start_stack.top().getID() );
+        start_stack.top().insertAdj( listOfNodes.end()[-2].getID() );
+        ct2++;
+        break;
+      }
+      else
+        start_stack.pop();
+
       ct2++;
-      break;
     }
-    else
-      start_stack.pop();
 
-    ct2++;
-  }
+    int ct3=0;
+    while(!end_stack.empty() ){// && ct3<1000){
 
-  int ct3=0;
-  while(!end_stack.empty() ){// && ct3<1000){
+      if( can_connect( endNode, end_stack.top(), map, x_size, y_size ) ){
+        
+        listOfNodes.back().insertAdj( end_stack.top().getID() );
+        end_stack.top().insertAdj( listOfNodes.back().getID() );
+        ct3++;
+        break;
+      }
+      else
+        end_stack.pop();
 
-    if( can_connect( endNode, end_stack.top(), map, x_size, y_size ) ){
-      
-      listOfNodes.back().insertAdj( end_stack.top().getID() );
-      end_stack.top().insertAdj( listOfNodes.back().getID() );
       ct3++;
-      break;
     }
-    else
-      end_stack.pop();
 
-    ct3++;
-  }
+    mexPrintf("Ended while loops 2 and 3 - %d and %d \n", ct2, ct3);
+    mexEvalString("drawnow");
 
-  mexPrintf("Ended while loops 2 and 3 - %d and %d \n", ct2, ct3);
-  mexEvalString("drawnow");
+    // Query done, now search graph using Dijkstraa's
+    std::priority_queue< NodePRM , std::vector<NodePRM>, CompareF > open_set;
+    listOfNodes.end()[-2].setG(0.0);
+    open_set.push( listOfNodes.end()[-2] );
 
-  // Query done, now search graph using Dijkstraa's
-  std::priority_queue< NodePRM , std::vector<NodePRM>, CompareF > open_set;
-  listOfNodes.end()[-2].setG(0.0);
-  open_set.push( listOfNodes.end()[-2] );
+    int ct4=0;
+    while( !listOfNodes.back().isExpanded() && !open_set.empty() && ct4<1000){
 
-  int ct4=0;
-  while( !listOfNodes.back().isExpanded() && !open_set.empty() && ct4<1000){
+      NodePRM temp = open_set.top();
+      open_set.pop();
 
-    NodePRM temp = open_set.top();
-    open_set.pop();
+      for(auto succesor : temp.getAdjIDs() ){
 
-    for(auto succesor : temp.getAdjIDs() ){
+        if( listOfNodes[succesor].getG() > temp.getG() + distanceFn( temp, listOfNodes[succesor] ) ){
 
-      if( listOfNodes[succesor].getG() > temp.getG() + distanceFn( temp, listOfNodes[succesor] ) ){
-
-        listOfNodes[succesor].setG( temp.getG() + distanceFn( temp, listOfNodes[succesor] ) );
-        open_set.push(listOfNodes[succesor]);
+          listOfNodes[succesor].setG( temp.getG() + distanceFn( temp, listOfNodes[succesor] ) );
+          open_set.push(listOfNodes[succesor]);
+        }
       }
+
+      if(listOfNodes.back().isExpanded()){
+
+        mexPrintf("target expanded \n", ct4);
+        mexEvalString("drawnow");
+      }     
+
+      ct4++;
     }
 
-    if(listOfNodes.back().isExpanded()){
+    mexPrintf("end while loop 4 - %d \n", ct4);
+    mexEvalString("drawnow");
+    // start backtracking
+    std::stack<NodePRM> optPath;
+    optPath.push( listOfNodes.back() );
 
-      mexPrintf("target expanded \n", ct4);
-      mexEvalString("drawnow");
-    }     
+    int ct5=0;
+    while( optPath.top().getID() != listOfNodes.end()[-2].getID() && ct5<1000 ){
 
-    ct4++;
-  }
+      double min_G = std::numeric_limits<double>::infinity(); 
+      int finID;
+      NodePRM temp1 = optPath.top();
 
-  mexPrintf("end while loop 4 - %d \n", ct4);
-  mexEvalString("drawnow");
-  // start backtracking
-  std::stack<NodePRM> optPath;
-  optPath.push( listOfNodes.back() );
+      for( auto succesor : temp1.getAdjIDs() ){
 
-  int ct5=0;
-  while( optPath.top().getID() != listOfNodes.end()[-2].getID() && ct5<1000 ){
+        if(min_G > temp1.getG() + distanceFn( listOfNodes[succesor], temp1 ) ){
 
-    double min_G = std::numeric_limits<double>::infinity(); 
-    int finID;
-    NodePRM temp1 = optPath.top();
-
-    for( auto succesor : temp1.getAdjIDs() ){
-
-      if(min_G > temp1.getG() + distanceFn( listOfNodes[succesor], temp1 ) ){
-
-        min_G = temp1.getG() + distanceFn( listOfNodes[succesor], temp1 );
-        finID = listOfNodes[succesor].getID();
+          min_G = temp1.getG() + distanceFn( listOfNodes[succesor], temp1 );
+          finID = listOfNodes[succesor].getID();
+        }
       }
+
+      optPath.push( listOfNodes[finID] );
+      ct5++;
     }
 
-    optPath.push( listOfNodes[finID] );
-    ct5++;
-  }
+    mexPrintf("end while loop 5 - %d \n", ct5);
+    mexEvalString("drawnow");
+    // optPath.pop();
+    *planlength = optPath.size();
 
-  mexPrintf("end while loop 5 - %d \n", ct5);
-  mexEvalString("drawnow");
-  // optPath.pop();
-  *planlength = optPath.size();
+    *plan = (double**) malloc(optPath.size() *sizeof(double*));
+    for(int i=0; i < optPath.size(); i++ ){
 
-  *plan = (double**) malloc(optPath.size() *sizeof(double*));
-  for(int i=0; i < optPath.size(); i++ ){
+      (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
 
-    (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+      for(int j=0; j< numofDOFs; j++){
 
-    for(int j=0; j< numofDOFs; j++){
+        (*plan)[i][j] = optPath.top().getNthCoord(j);
+      }
 
-      (*plan)[i][j] = optPath.top().getNthCoord(j);
+      optPath.pop();
     }
-
-    optPath.pop();
   }
+  else{
 
-
-
-
+    mexPrintf("either goal or start configs are invalid \n");
+    mexEvalString("drawnow");
+  }
 
 // *plan = (double**) malloc(numofsamples *sizeof(double*));
 //    int firstinvalidconf = 1;
@@ -561,100 +566,176 @@ static void plannerRRT(
   *plan = NULL;
   *planlength = 0;
 
+  //  parameters
+  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
+  double tol = 2.0*PI/180;
+  double goalProb = 0.2;
+
   // initialize
   bool goalRegion = false;
   srand(time(nullptr));
-  double angleUB = 2*3.14, angleLB = 0.0;
-  double eps = 20.0*PI/180.0;
+  double angleUB = 2.0*3.14, angleLB = 0.0;
+  int goalSampling;
 
   // store start and end vectors
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
  
-  // initialize tree with start / end
-  mexPrintf("before initializing trees \n");
-  mexEvalString("drawnow");
-  NodeRRT* root = new NodeRRT;
-  root->setParent(nullptr);
-  root->setCoord( startCoord );
+  if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
+    && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-  NodeRRT* tail = new NodeRRT;
-  tail->setParent(nullptr);
-
-  int ct1=0;
-  // begin while loop
-  while( !goalRegion && ct1 <100000){
-
-    ct1++;
-    // mexPrintf("entered main while loop \n");
+    // initialize tree with start / end
+    // mexPrintf("before initializing trees \n");
     // mexEvalString("drawnow");
-    std::vector<double> currSamplePt;
+    NodeRRT* root = new NodeRRT;
+    root->setParent(nullptr);
+    root->setCoord( startCoord );
 
-    for (int i = 0; i<numofDOFs; i++){
+    NodeRRT* tail = new NodeRRT;
+    tail->setParent(nullptr);
 
-      double temp = randomDouble(angleLB, angleUB);
-      currSamplePt.push_back( temp );
-      // mexPrintf("Current point is %f \n", temp);
+    int ct1=0;
+    // begin while loop
+    while( !goalRegion && ct1<10000000 ){
+
+      ct1++;
+      // mexPrintf("entered main while loop \n");
+      // mexEvalString("drawnow");
+      std::vector<double> currSamplePt;
+
+      // srand(time(nullptr));
+      double probTemp = randomDouble(0.0, 1.0);
+
+      if (probTemp < goalProb)
+          goalSampling =1;
+      else
+          goalSampling = 0;
+
+
+      if(goalSampling==0){
+
+        for (int i = 0; i<numofDOFs; i++){
+
+          double temp = randomDouble(angleLB, angleUB);
+          currSamplePt.push_back( temp );
+          // mexPrintf("random point is %f \n", temp);
+          // mexEvalString("drawnow");
+        }
+        // goalSampling=1;
+      }
+      else{
+
+        for (int i = 0; i<numofDOFs; i++){
+
+          double temp = randomDouble(endCoord[i] - tol, endCoord[i]+tol);
+          currSamplePt.push_back( temp );
+          // mexPrintf("goal point is %f \n", temp);
+          // mexEvalString("drawnow");
+        }
+        // goalSampling=0;
+      }
+
+      if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
+
+        int marker = extend( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
+        // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
+        // mexPrintf("extend returns %d \n", marker);
+        // mexEvalString("drawnow");
+
+        if(marker==3)
+          goalRegion=true;
+      }
+
+      // mexPrintf("extend returns %d \n", marker);
       // mexEvalString("drawnow");
     }
 
-    if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size)==1 ){
+    // tree traversal from tail to root
+    std::stack< std::vector<double> > finPath;
+    if ( tail->getParent()!=nullptr ){
 
-      int marker = extend( root, tail, currSamplePt, eps,  map, x_size, y_size,  endCoord );
-      // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
-      mexPrintf("extend returns %d \n", marker);
-      mexEvalString("drawnow");
+      finPath.push(tail->getCoords());
+      NodeRRT* traverse = tail;
+      // mexPrintf("just after traverse declaration \n");
+      // mexEvalString("drawnow");
 
-      if(marker==3)
-        goalRegion=true;
+      while(traverse->getParent()!=nullptr){
+
+        traverse = traverse->getParent();
+        finPath.push( traverse->getCoords() );
+      }
     }
 
-    // mexPrintf("extend returns %d \n", marker);
+    // mexPrintf("traverse while loop done \n");
+    // mexEvalString("drawnow");
+    // finPath.pop();
+    int sizePath =finPath.size();
+    *planlength = sizePath;
+
+    // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
+    // mexEvalString("drawnow");
+
+    *plan = (double**) malloc(sizePath *sizeof(double*));
+    int firstinvalidconf = 1;
+
+    for(int i=0; i < sizePath; i++ ){
+
+      if(finPath.empty()){
+
+        // printf("broke \n");
+        // mexEvalString("drawnow");
+        break;
+      }
+
+      (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+      for(int j=0; j< numofDOFs; j++){
+
+        (*plan)[i][j] = finPath.top()[j];
+        // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+      }
+
+      if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+      {
+          firstinvalidconf = 1;
+          printf("ERROR: Invalid arm configuration!!!\n");
+      }
+
+      finPath.pop();
+    }
+    // mexPrintf("exited for loop \n");
+    // mexEvalString("drawnow");
+
+    // *plan = (double**) malloc(numofsamples*sizeof(double*));
+    // int firstinvalidconf = 1;
+    // for (i = 0; i < numofsamples; i++){
+    //     (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+    //     for(j = 0; j < numofDOFs; j++){
+    //         (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
+    //     }
+    //     if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
+    //     {
+    //         firstinvalidconf = 1;
+    //         printf("ERROR: Invalid arm configuration!!!\n");
+    //     }
+    // }    
+    // *planlength = numofsamples;
+
+    if(root!=nullptr)
+      delete root;
+    
+    if(tail!=nullptr)
+      delete tail;
+
+    // mexPrintf("delete done \n");
     // mexEvalString("drawnow");
   }
+  else{
 
-  // tree traversal from tail to root
-  std::stack< std::vector<double> > finPath;
-  if ( tail->getParent()!=nullptr ){
-
-    finPath.push(tail->getCoords());
-    NodeRRT* traverse = tail;
-    mexPrintf("just after traverse declaration \n");
+    mexPrintf("either goal or start configs are invalid \n");
     mexEvalString("drawnow");
-
-    while(traverse->getParent()!=nullptr){
-
-      traverse = traverse->getParent();
-      finPath.push( traverse->getCoords() );
-    }
   }
 
-  mexPrintf("traverse while loop done \n");
-  mexEvalString("drawnow");
-  // finPath.pop();
-  *planlength = finPath.size();
-
-  mexPrintf("finPath size is %d \n size of vector is %d \n", finPath.size(), finPath.top().size());
-  mexEvalString("drawnow");
-
-  *plan = (double**) malloc(finPath.size() *sizeof(double*));
-  for(int i=0; i < finPath.size(); i++ ){
-
-    if(finPath.empty())
-      break;
-
-    (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
-
-    for(int j=0; j< numofDOFs; j++){
-
-      (*plan)[i][j] = finPath.top()[j];
-    }
-
-    finPath.pop();
-  }
-
-  delete root;
-  delete tail;
   return;
 }
 
@@ -678,7 +759,7 @@ static void plannerRRT_star(
     
 
     
-    return;
+  return;
 }
 
 // ********PLANNER RRT CONNECT ******* ///////
@@ -696,7 +777,7 @@ static void plannerRRT_connect(
 	*plan = NULL;
 	*planlength = 0;
         
-    return;
+  return;
 }
 
 //prhs contains input parameters (3): 
@@ -789,6 +870,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
         {
             for (j = 0; j < numofDOFs; j++)
             {
+                // printf("before calling plan i: %d, j: %d \n ", i, j); 
                 plan_out[j*planlength + i] = plan[i][j];
             }
         }
@@ -808,6 +890,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
     int* planlength_out = (int*) mxGetPr(PLANLENGTH_OUT);
     *planlength_out = planlength;
 
+    // printf("mex function done \n"); 
     
     return;
     

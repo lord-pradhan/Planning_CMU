@@ -150,11 +150,11 @@ void treeDFS(  NodeRRT* nodeIn, std::vector<double> currSamplePt_,
   std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > &min_queue );
 
 int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , double eps_, double* map, 
-  int x_size, int y_size, std::vector<double> endCoord_ );
+  int x_size, int y_size, std::vector<double> endCoord_, double tol );
 
 int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_ , double eps_, 
- double* map, int x_size, int y_size, std::vector<double> endCoord_ );
+ double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol );
 
-bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_);
+bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, double tol);
 
 #endif
