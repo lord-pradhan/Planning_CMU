@@ -213,7 +213,7 @@ int IsValidArmConfiguration(double* angles, int numofDOFs, double*	map,
 struct CompareF{
     bool operator()(NodePRM const & n1, NodePRM const & n2) {
         // return "true" if "p1" is ordered before "p2", for example:
-        long eps = 1;
+        // long eps = 1;
         return n1.getG() > n2.getG();
     }
 };
@@ -564,6 +564,8 @@ static void plannerRRT(
   // initialize
   bool goalRegion = false;
   srand(time(nullptr));
+  double angleUB = 3.14, angleLB = 0.0;
+  double eps = 5*PI/180.0;
 
   // store start and end vectors
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
@@ -601,9 +603,9 @@ static void plannerRRT(
   }
 
   // tree traversal from tail to root
+  std::stack< std::vector<double> > finPath;
   if ( tail->getParent()!=nullptr ){
 
-    std::stack< std::vector<double> > finPath;
     finPath.push(tail->getCoords());
     NodeRRT* traverse = tail;
 

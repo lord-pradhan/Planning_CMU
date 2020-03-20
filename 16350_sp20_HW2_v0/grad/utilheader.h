@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <vector>
 #include <limits>
+#include <queue>
+
+#define PI 3.141592654
 
 #ifndef UTILHEADER_H
 #define UTILHEADER_H
@@ -114,7 +117,8 @@ public:
 
 };
 
-// bool reachedGoal();
+// bool reachedGoal()
+
 
 double distanceRRT( std::vector<double> vect1, std::vector<double> vect2 );
 
@@ -125,15 +129,32 @@ public:
   NodeRRT* nodeIn;
   std::vector<double> currSamplePt;
 
+  NodePQ();
+
   NodePQ(NodeRRT* nodeIn_, std::vector<double> currSamplePt_);
 
   double getDist() const;
 };
 
+struct CompareNN{
+    bool operator()(NodePQ const &n1 , NodePQ const &n2) {
+        // return "true" if "p1" is ordered before "p2", for example:
+        // long eps = 1;
+        return n1.getDist() > n2.getDist();
+    }
+};
+
 NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ );
 
-void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_ );
+void treeDFS(  NodeRRT* nodeIn, std::vector<double> currSamplePt_, 
+  std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > &min_queue );
 
-int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ );
+int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , int eps_, double* map, 
+  int x_size, int y_size, std::vector<double> endCoord_ );
+
+int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_ , double eps_, 
+ double* map, int x_size, int y_size, std::vector<double> endCoord_ );
+
+bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_);
 
 #endif

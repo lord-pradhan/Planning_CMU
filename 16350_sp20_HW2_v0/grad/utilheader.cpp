@@ -248,8 +248,10 @@ double distanceRRT( std::vector<double> vect1, std::vector<double> vect2 ){
 
 
 // class for priority queue
-void NodePQ::NodePQ( NodeRRT* nodeIn_, std::vector<double> currSamplePt_ ): 
+NodePQ::NodePQ( NodeRRT* nodeIn_, std::vector<double> currSamplePt_ ): 
 nodeIn(nodeIn_), currSamplePt(currSamplePt_) {}
+
+NodePQ::NodePQ(){}
 
 double NodePQ::getDist() const{
 
@@ -289,7 +291,7 @@ int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , 
 
 	else if(returnKey == 3){
 
-		tail_->setCoords( newNode->getCoords() );
+		tail_->setCoord( newNode->getCoords() );
 		tail_->setParent(nearestNode);
 		nearestNode->addChild(tail_);
 		newNode = nullptr;
@@ -299,34 +301,37 @@ int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , 
 
 
 
-struct CompareNN{
-    bool operator()(NodePQ const &n1 , NodePQ const &n2) {
-        // return "true" if "p1" is ordered before "p2", for example:
-        // long eps = 1;
-        return n1.getDist() > n2.getDist();
-    }
-};
+// struct CompareNN{
+//     bool operator()(NodePQ const &n1 , NodePQ const &n2) {
+//         // return "true" if "p1" is ordered before "p2", for example:
+//         // long eps = 1;
+//         return n1.getDist() > n2.getDist();
+//     }
+// };
 
 NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ ){
 
 	std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > min_queue;
 
-	min_queue.push( NodePQ nodeTemp( currSamplePt_, root_ ) );
+	NodePQ nodeTemp( root_, currSamplePt_ );
+	min_queue.push( nodeTemp );
 
-	treeDFS( root_, currSamplePt_ );
+	treeDFS( root_, currSamplePt_ , min_queue);
 
 	return min_queue.top().nodeIn;
 }
 
 
-void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_ ){
+void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, 
+	std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > &min_queue ){
 
 	if ( !nodeIn->getChildren().empty() ){
 
-		for (auto i : nodeIn.getChildren()){
+		for (auto i : nodeIn->getChildren()){
 
-			min_queue.push( NodePQ nodeTemp( currSamplePt_, i ) );
-			treeDFS( i , currSamplePt_ );
+			NodePQ nodeTemp( i, currSamplePt_ );
+			min_queue.push( nodeTemp );
+			treeDFS(  i, currSamplePt_, min_queue );
 		}
 		return;
 	}
@@ -337,7 +342,7 @@ void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_ ){
 }
 
 
-int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_ , int eps_, 
+int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_ , double eps_, 
  double* map, int x_size, int y_size, std::vector<double> endCoord_ ){
 
 	mexPrintf("Entered newConfig\n");
@@ -365,32 +370,32 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 													- nearestNode_->getCoords()[j] ) / 20.0 );
 		}
 
-		if(!IsValidArmConfiguration( xVals.data(), pushNodeIn.getCoords().size(), map, x_size, y_size) ){
+		if(!IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) ){
 
 			if(i==0){
 				return 2;
 			}
 			else{
-				newNode_->setCoords( xVals );
+				newNode_->setCoord( xVals );
 				return 1;
 			}
 		}
 
 		if(reachedGoal(xVals, endCoord_)){
 
-			newNode_->setCoords(xVals);
+			newNode_->setCoord(xVals);
 			return 3;
 		}
 	}
 
 	if( eps_ >= distanceRRT( nearestNode_->getCoords(), currSamplePt_ ) ){
 
-		newNode_->setCoords( currSamplePt_ );
+		newNode_->setCoord( currSamplePt_ );
 		return 0;
 	}
 	else{
 
-		newNode_->setCoords( xEnd );
+		newNode_->setCoord( xEnd );
 		return 1;
 	}
 
