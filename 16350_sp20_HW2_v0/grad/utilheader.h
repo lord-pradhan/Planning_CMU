@@ -88,4 +88,52 @@ void get_bresenham_parameters(int p1x, int p1y, int p2x, int p2y, bresenham_para
 
 void ContXY2Cell(double x, double y, short unsigned int* pX, short unsigned int *pY, int x_size, int y_size);
 
+//////// for RRT /////
+
+class NodeRRT{
+
+private:
+  std::vector <double> elemCoords;
+  NodeRRT* parent;
+  std::vector<NodeRRT*> children;
+
+public:
+  NodeRRT(); 
+
+  std::vector <double> getCoords() const;
+
+  NodeRRT* getParent() const;
+
+  std::vector<NodeRRT*> getChildren() const;
+
+  void addChild( NodeRRT*  child_);
+
+  void setParent( NodeRRT* parent_ );
+
+  void setCoord(std::vector <double> coordsIn);
+
+};
+
+// bool reachedGoal();
+
+double distanceRRT( std::vector<double> vect1, std::vector<double> vect2 );
+
+
+class NodePQ{
+  
+public:
+  NodeRRT* nodeIn;
+  std::vector<double> currSamplePt;
+
+  NodePQ(NodeRRT* nodeIn_, std::vector<double> currSamplePt_);
+
+  double getDist() const;
+};
+
+NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ );
+
+void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_ );
+
+int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ );
+
 #endif
