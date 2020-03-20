@@ -282,8 +282,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
   // parameters
   int N_samples = 200;
-  double angleUB = 3.14, angleLB = 0.0;
-  double nbd = 1;
+  double angleUB = 2*3.14, angleLB = 0.0;
+  double nbd = 2;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -546,7 +546,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
 
 
-// *************PLANNER RRT ******************** ////
+// *************PLANNER RRT ******************** //
 static void plannerRRT(
 		   double*	map,
 		   int x_size,
@@ -564,24 +564,30 @@ static void plannerRRT(
   // initialize
   bool goalRegion = false;
   srand(time(nullptr));
-  double angleUB = 3.14, angleLB = 0.0;
-  double eps = 5*PI/180.0;
+  double angleUB = 2*3.14, angleLB = 0.0;
+  double eps = 20.0*PI/180.0;
 
   // store start and end vectors
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
  
   // initialize tree with start / end
-  NodeRRT* root;
+  mexPrintf("before initializing trees \n");
+  mexEvalString("drawnow");
+  NodeRRT* root = new NodeRRT;
   root->setParent(nullptr);
   root->setCoord( startCoord );
 
-  NodeRRT* tail;
+  NodeRRT* tail = new NodeRRT;
   tail->setParent(nullptr);
 
+  int ct1=0;
   // begin while loop
-  while( !goalRegion ){
+  while( !goalRegion && ct1 <100000){
 
+    ct1++;
+    // mexPrintf("entered main while loop \n");
+    // mexEvalString("drawnow");
     std::vector<double> currSamplePt;
 
     for (int i = 0; i<numofDOFs; i++){
@@ -596,10 +602,15 @@ static void plannerRRT(
 
       int marker = extend( root, tail, currSamplePt, eps,  map, x_size, y_size,  endCoord );
       // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
+      mexPrintf("extend returns %d \n", marker);
+      mexEvalString("drawnow");
 
       if(marker==3)
         goalRegion=true;
     }
+
+    // mexPrintf("extend returns %d \n", marker);
+    // mexEvalString("drawnow");
   }
 
   // tree traversal from tail to root
@@ -608,6 +619,8 @@ static void plannerRRT(
 
     finPath.push(tail->getCoords());
     NodeRRT* traverse = tail;
+    mexPrintf("just after traverse declaration \n");
+    mexEvalString("drawnow");
 
     while(traverse->getParent()!=nullptr){
 
@@ -616,11 +629,19 @@ static void plannerRRT(
     }
   }
 
+  mexPrintf("traverse while loop done \n");
+  mexEvalString("drawnow");
   // finPath.pop();
   *planlength = finPath.size();
 
+  mexPrintf("finPath size is %d \n size of vector is %d \n", finPath.size(), finPath.top().size());
+  mexEvalString("drawnow");
+
   *plan = (double**) malloc(finPath.size() *sizeof(double*));
   for(int i=0; i < finPath.size(); i++ ){
+
+    if(finPath.empty())
+      break;
 
     (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
 
@@ -632,6 +653,8 @@ static void plannerRRT(
     finPath.pop();
   }
 
+  delete root;
+  delete tail;
   return;
 }
 
