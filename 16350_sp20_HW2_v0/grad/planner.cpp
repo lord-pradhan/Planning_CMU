@@ -837,8 +837,13 @@ static void plannerRRT_connect(
     tree2->setParent(nullptr);    
     tree2->setCoord( endCoord );
 
+    NodeRRT* tail1 = new NodeRRT;
+    NodeRRT* tail2 = new NodeRRT;
+    // printf("just before declaring new nodes \n");
+
     while(!treeConnected){
 
+      printf("entered while loop\n");
       std::vector<double> currSamplePt;
 
       for (int i = 0; i<numofDOFs; i++){
@@ -851,25 +856,35 @@ static void plannerRRT_connect(
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
 
+        // newNode1 = nullptr;
         NodeRRT* newNode1 = new NodeRRT;
         // follow this around to debug
+        printf("valid arm config\n");
 
         if(extend_star(tree1, currSamplePt, newNode1, eps, map, x_size, y_size)!=2){
 
-          NodeRRT* newNode2 = new NodeRRT;
+          // newNode2 = nullptr;
+          printf("extend star if condition entered\n");
 
-          if (connect_star(tree2, newNode1, newNode2, eps, map, x_size, y_size)==0 ){
+          if (connect_star(tree2, newNode1, tail2, eps, map, x_size, y_size)==0 ){
 
             treeConnected=true;
+            // tail1->setCoord(newNode1->getCoords());
+            // tail1->setParent( newNode1->getParent() );
+            tail1 = newNode1;
+            // tail2 = newNode2;         
+            printf("tree connected \n");
             break;
           }
         }
-
-        swapTrees( tree1, tree2 );
+        printf("just before swap trees\n");
+        std::swap(tree1, tree2);
+        // swapTrees( tree1, tree2 );
       }
     }
 
     // check which tree is which
+    printf("start backtracking\n");
     bool forward;
     std::list< std::vector<double> > finPath;
     if(tree1->getCoords() == startCoord)
@@ -879,10 +894,11 @@ static void plannerRRT_connect(
 
     if(forward){ // if forwards expansion
 
-      if( newNode1->getParent()!=nullptr ){
+      printf("direction is forward  \n");
+      if( tail1->getParent()!=nullptr ){
 
-        finPath.push_front(newNode1->getCoords());
-        NodeRRT* traverse = newNode1;
+        finPath.push_front(tail1->getCoords());
+        NodeRRT* traverse = tail1;
 
         while(traverse->getParent()!=nullptr){
 
@@ -891,10 +907,10 @@ static void plannerRRT_connect(
         }
       }
 
-      if(newNode2->getParent()!=nullptr){
+      if(tail2->getParent()!=nullptr){
 
-        finPath.push_back( newNode2->getCoords() );
-        NodeRRT* traverse = newNode2;
+        finPath.push_back( tail2->getCoords() );
+        NodeRRT* traverse = tail2;
 
         while(traverse->getParent()!=nullptr){
 
@@ -905,10 +921,11 @@ static void plannerRRT_connect(
     }
     else{
 
-      if( newNode2->getParent()!=nullptr ){
+      printf("direction is backwards\n");
+      if( tail2->getParent()!=nullptr ){
 
-        finPath.push_front(newNode2->getCoords());
-        NodeRRT* traverse = newNode2;
+        finPath.push_front(tail2->getCoords());
+        NodeRRT* traverse = tail2;
 
         while(traverse->getParent()!=nullptr){
 
@@ -917,10 +934,10 @@ static void plannerRRT_connect(
         }
       }
 
-      if(newNode1->getParent()!=nullptr){
+      if(tail1->getParent()!=nullptr){
 
-        finPath.push_back( newNode1->getCoords() );
-        NodeRRT* traverse = newNode1;
+        finPath.push_back( tail1->getCoords() );
+        NodeRRT* traverse = tail1;
 
         while(traverse->getParent()!=nullptr){
 
@@ -954,7 +971,7 @@ static void plannerRRT_connect(
 
       for(int j=0; j< numofDOFs; j++){
 
-        (*plan)[i][j] = finPath.top()[j];
+        (*plan)[i][j] = finPath.front()[j];
         // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
       }
 
@@ -964,7 +981,7 @@ static void plannerRRT_connect(
           printf("ERROR: Invalid arm configuration!!!\n");
       }
 
-      finPath.pop();
+      finPath.pop_front();
     }
 
     // deallocate pointers
@@ -974,11 +991,17 @@ static void plannerRRT_connect(
     if(tree2!=nullptr)
       delete tree2;
 
-    if(newNode1!=nullptr)
-      delete newNode1;
+    if(tail1!=nullptr)
+      delete tail1;
 
-    if(newNode2!=nullptr)
-      delete newNode2;
+    if(tail2!=nullptr)
+      delete tail2;
+
+    // if(newNode1!=nullptr)
+    //   delete newNode1;
+
+    // if(newNode2!=nullptr)
+    //   delete newNode2;
 
   }
 

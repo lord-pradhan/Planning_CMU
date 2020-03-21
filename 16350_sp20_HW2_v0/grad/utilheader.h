@@ -166,7 +166,7 @@ int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* n
 int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
          double* map, int x_size, int y_size );
 
-int connect_star( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* newNode2_ , 
+int connect_star( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
   double eps_, double* map, int x_size, int y_size);
 
 void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ );
