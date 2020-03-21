@@ -220,8 +220,6 @@ struct CompareF{
 
 
 
-
-
 // *******All planners reside here*********
 
 // ****DEFAULT********
@@ -270,7 +268,11 @@ static void planner(
 }
 
 
+
+
+///// Begin planners ////////
 // ********PLANNER PRM ******* ///////
+
 static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_anglesV_rad,
        double* armgoal_anglesV_rad, int numofDOFs, double*** plan,  int* planlength)
 {
@@ -281,9 +283,9 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   // mexEvalString("drawnow");
 
   // parameters
-  int N_samples = 200;
+  int N_samples = 20000;
   double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = 2;
+  double nbd = sqrt(numofDOFs)*5.0*PI/180.0;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -301,7 +303,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     mexEvalString("drawnow");
 
     int ct1=0;
-    while( elemCt < N_samples && ct1<1000){
+    while( elemCt < N_samples && ct1<100000){
 
       std::vector <double> currSamplePt;
 
@@ -315,17 +317,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
         // mexEvalString("drawnow");
       }
 
-    //   mexPrintf("Sampled random point \n");
-      // mexEvalString("drawnow");
-
-      // make an array of doubles for collision checking
-      // double anglesArr[ numofDOFs ];
-      // std::copy( currSamplePt.begin(), currSamplePt.end(), anglesArr );
-
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size)==1 ){
-
-     //   mexPrintf("Found valid arm config \n");
-        // mexEvalString("drawnow");
 
         NodePRM pushNode;
         pushNode.setElemID(elemCt);
@@ -549,8 +541,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
 
 
-
-
 // *************PLANNER RRT ******************** //
 static void plannerRRT(
 		   double*	map,
@@ -570,6 +560,7 @@ static void plannerRRT(
   double eps = sqrt(numofDOFs)*10.0*PI/180.0;
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
+  bool backwards = 1;
 
   // initialize
   bool goalRegion = false;
@@ -578,11 +569,24 @@ static void plannerRRT(
   int goalSampling;
 
   // store start and end vectors
-  std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
-  std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+  std::vector<double> startCoordActual(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
+  std::vector<double> endCoordActual(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+
+  std::vector<double> startCoord, endCoord;
+
+  if (backwards){
+
+    startCoord = endCoordActual;
+    endCoord = startCoordActual;
+  }
+  else
+  {
+    startCoord = startCoordActual;
+    endCoord = endCoordActual;
+  }
  
-  if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
-    && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
+  if(IsValidArmConfiguration( startCoordActual.data(), numofDOFs, map, x_size, y_size )==1 
+    && IsValidArmConfiguration( endCoordActual.data(), numofDOFs, map, x_size, y_size )==1 ){
 
     // initialize tree with start / end
     // mexPrintf("before initializing trees \n");
@@ -651,24 +655,283 @@ static void plannerRRT(
     }
 
     // tree traversal from tail to root
-    std::stack< std::vector<double> > finPath;
-    if ( tail->getParent()!=nullptr ){
 
-      finPath.push(tail->getCoords());
-      NodeRRT* traverse = tail;
-      // mexPrintf("just after traverse declaration \n");
+    if(!backwards){ // if forwards expansion
+
+      std::stack< std::vector<double> > finPath;
+      if ( tail->getParent()!=nullptr ){
+
+        finPath.push(tail->getCoords());
+        NodeRRT* traverse = tail;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push( traverse->getCoords() );
+        }
+      }
+
+      // mexPrintf("traverse while loop done \n");
+      // mexEvalString("drawnow");
+      // finPath.pop();
+      int sizePath =finPath.size();
+      *planlength = sizePath;
+
+      // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
       // mexEvalString("drawnow");
 
-      while(traverse->getParent()!=nullptr){
+      *plan = (double**) malloc(sizePath *sizeof(double*));
+      int firstinvalidconf = 1;
 
-        traverse = traverse->getParent();
-        finPath.push( traverse->getCoords() );
+      for(int i=0; i < sizePath; i++ ){
+
+        if(finPath.empty()){
+
+          // printf("broke \n");
+          // mexEvalString("drawnow");
+          break;
+        }
+
+        (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+        for(int j=0; j< numofDOFs; j++){
+
+          (*plan)[i][j] = finPath.top()[j];
+          // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+        }
+
+        if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+        {
+            firstinvalidconf = 1;
+            printf("ERROR: Invalid arm configuration!!!\n");
+        }
+
+        finPath.pop();
+      }
+    }
+    else{ // if backwards expansion
+
+      std::queue< std::vector<double> > finPath;
+      if ( tail->getParent()!=nullptr ){
+
+        finPath.push(tail->getCoords());
+        NodeRRT* traverse = tail;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push( traverse->getCoords() );
+        }
+      }
+
+      int sizePath =finPath.size();
+      *planlength = sizePath;
+
+      *plan = (double**) malloc(sizePath *sizeof(double*));
+      int firstinvalidconf = 1;
+
+      for(int i=0; i < sizePath; i++ ){
+
+        if(finPath.empty()){
+
+          // printf("broke \n");
+          // mexEvalString("drawnow");
+          break;
+        }
+
+        (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+        for(int j=0; j< numofDOFs; j++){
+
+          (*plan)[i][j] = finPath.front()[j];
+          // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+        }
+
+        if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+        {
+            firstinvalidconf = 1;
+            printf("ERROR: Invalid arm configuration!!!\n");
+        }
+
+        finPath.pop();
       }
     }
 
-    // mexPrintf("traverse while loop done \n");
-    // mexEvalString("drawnow");
-    // finPath.pop();
+    // deallocate pointers
+    if(root!=nullptr)
+      delete root;
+    
+    if(tail!=nullptr)
+      delete tail;
+  }
+
+  else{
+
+    mexPrintf("either goal or start configs are invalid \n");
+    mexEvalString("drawnow");
+  }
+
+  return;
+}
+
+
+
+
+// ********PLANNER RRT_STAR ******* ///////
+static void plannerRRT_star(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+    
+
+
+
+    
+  return;
+}
+
+// ********PLANNER RRT CONNECT ******* ///////
+static void plannerRRT_connect(
+		   double*	map,
+		   int x_size,
+ 		   int y_size,
+           double* armstart_anglesV_rad,
+           double* armgoal_anglesV_rad,
+	   int numofDOFs,
+	   double*** plan,
+	   int* planlength)
+{
+	//no plan by default
+	*plan = NULL;
+	*planlength = 0;
+
+  //parameters
+  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
+
+  // initialize
+  bool treeConnected = false;
+  double angleUB = 2.0*3.14, angleLB = 0.0;
+
+  // store start and end vectors
+  std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
+  std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+
+  if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
+    && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
+    
+    // initialize both trees
+    NodeRRT* tree1 = new NodeRRT;
+    tree1->setParent(nullptr);
+    tree1->setCoord( startCoord );
+
+    NodeRRT* tree2 = new NodeRRT;
+    tree2->setParent(nullptr);    
+    tree2->setCoord( endCoord );
+
+    while(!treeConnected){
+
+      std::vector<double> currSamplePt;
+
+      for (int i = 0; i<numofDOFs; i++){
+
+        double temp = randomDouble(angleLB, angleUB);
+        currSamplePt.push_back( temp );
+        // mexPrintf("random point is %f \n", temp);
+        // mexEvalString("drawnow");
+      }
+
+      if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
+
+        NodeRRT* newNode1 = new NodeRRT;
+        // follow this around to debug
+
+        if(extend_star(tree1, currSamplePt, newNode1, eps, map, x_size, y_size)!=2){
+
+          NodeRRT* newNode2 = new NodeRRT;
+
+          if (connect_star(tree2, newNode1, newNode2, eps, map, x_size, y_size)==0 ){
+
+            treeConnected=true;
+            break;
+          }
+        }
+
+        swapTrees( tree1, tree2 );
+      }
+    }
+
+    // check which tree is which
+    bool forward;
+    std::list< std::vector<double> > finPath;
+    if(tree1->getCoords() == startCoord)
+      forward=true;
+    else
+      forward=false;
+
+    if(forward){ // if forwards expansion
+
+      if( newNode1->getParent()!=nullptr ){
+
+        finPath.push_front(newNode1->getCoords());
+        NodeRRT* traverse = newNode1;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push_front( traverse->getCoords() );
+        }
+      }
+
+      if(newNode2->getParent()!=nullptr){
+
+        finPath.push_back( newNode2->getCoords() );
+        NodeRRT* traverse = newNode2;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push_back( traverse->getCoords() );
+        }
+      }
+    }
+    else{
+
+      if( newNode2->getParent()!=nullptr ){
+
+        finPath.push_front(newNode2->getCoords());
+        NodeRRT* traverse = newNode2;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push_front( traverse->getCoords() );
+        }
+      }
+
+      if(newNode1->getParent()!=nullptr){
+
+        finPath.push_back( newNode1->getCoords() );
+        NodeRRT* traverse = newNode1;
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push_back( traverse->getCoords() );
+        }
+      }
+    }
+      // // mexPrintf("traverse while loop done \n");
+      // // mexEvalString("drawnow");
+    
     int sizePath =finPath.size();
     *planlength = sizePath;
 
@@ -703,80 +966,28 @@ static void plannerRRT(
 
       finPath.pop();
     }
-    // mexPrintf("exited for loop \n");
-    // mexEvalString("drawnow");
 
-    // *plan = (double**) malloc(numofsamples*sizeof(double*));
-    // int firstinvalidconf = 1;
-    // for (i = 0; i < numofsamples; i++){
-    //     (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
-    //     for(j = 0; j < numofDOFs; j++){
-    //         (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
-    //     }
-    //     if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
-    //     {
-    //         firstinvalidconf = 1;
-    //         printf("ERROR: Invalid arm configuration!!!\n");
-    //     }
-    // }    
-    // *planlength = numofsamples;
-
-    if(root!=nullptr)
-      delete root;
+    // deallocate pointers
+    if(tree1!=nullptr)
+      delete tree1;
     
-    if(tail!=nullptr)
-      delete tail;
+    if(tree2!=nullptr)
+      delete tree2;
 
-    // mexPrintf("delete done \n");
-    // mexEvalString("drawnow");
+    if(newNode1!=nullptr)
+      delete newNode1;
+
+    if(newNode2!=nullptr)
+      delete newNode2;
+
   }
+
   else{
 
     mexPrintf("either goal or start configs are invalid \n");
     mexEvalString("drawnow");
   }
 
-  return;
-}
-
-
-
-
-// ********PLANNER RRT_STAR ******* ///////
-static void plannerRRT_star(
-		   double*	map,
-		   int x_size,
- 		   int y_size,
-           double* armstart_anglesV_rad,
-           double* armgoal_anglesV_rad,
-	   int numofDOFs,
-	   double*** plan,
-	   int* planlength)
-{
-	//no plan by default
-	*plan = NULL;
-	*planlength = 0;
-    
-
-    
-  return;
-}
-
-// ********PLANNER RRT CONNECT ******* ///////
-static void plannerRRT_connect(
-		   double*	map,
-		   int x_size,
- 		   int y_size,
-           double* armstart_anglesV_rad,
-           double* armgoal_anglesV_rad,
-	   int numofDOFs,
-	   double*** plan,
-	   int* planlength)
-{
-	//no plan by default
-	*plan = NULL;
-	*planlength = 0;
-        
   return;
 }
 

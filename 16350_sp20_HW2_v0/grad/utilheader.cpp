@@ -425,3 +425,138 @@ bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, dou
 
 	return true;
 }
+
+
+
+
+
+// functions for RRT* //////
+
+int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
+ double eps_, double* map, int x_size, int y_size ){
+
+	NodeRRT* nearestNode = nearestNeighbour( currSamplePt_, tree1_ );
+
+	int returnKey = newConfig_star( currSamplePt_, nearestNode, newNode_, eps_,  map, x_size, y_size);
+	// '0' = reached, '1' = advanced, '2' = trapped, '3' = goal reached 
+
+	if( returnKey == 0){
+
+		newNode_->setParent(nearestNode);
+		nearestNode->addChild( newNode_ );
+		// delete newNode;
+		return 0;
+	}
+
+	else if( returnKey == 1 ){
+
+		newNode_->setParent(nearestNode);
+		nearestNode->addChild( newNode_ );
+		// delete newNode;
+		return 1;
+	}
+
+	else if( returnKey == 2 ){
+
+		// newNode = nullptr;
+		delete newNode_;
+		return 2;	
+	}
+
+	// else if(returnKey == 3){
+
+	// 	tail_->setCoord( newNode->getCoords() );
+	// 	tail_->setParent(nearestNode);
+	// 	nearestNode->addChild(tail_);
+	// 	// newNode = nullptr;
+	// 	// delete newNode;
+	// 	return 3;
+	// }
+}
+
+int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
+				 double* map, int x_size, int y_size ){
+
+	// mexPrintf("Entered newConfig\n");
+	// mexEvalString("drawnow");
+	int numChecks = 20;
+	double distanceTemp = distanceRRT( nearestNode_->getCoords(), currSamplePt_);
+	double ratio_temp = std::min( distanceTemp , eps_ ) / distanceTemp;
+	// ratio_temp /= distanceRRT( nearestNode_->getCoords(), currSamplePt_ );
+	// mexPrintf("Ratio is %lf \n distance is %lf \n", ratio_temp, distanceTemp );
+	// mexEvalString("drawnow");
+
+	std::vector<double> xEnd;
+
+	for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
+
+		xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+													- nearestNode_->getCoords()[j] ) ) ;
+	}
+
+
+	for(int i = 0; i<numChecks; i++){
+
+		std::vector<double> xVals;
+
+		for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
+
+			xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+													- nearestNode_->getCoords()[j] ) / (double) numChecks );
+		}
+
+		if(IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) == 0){
+
+			if(i==0){
+				return 2;
+			}
+			else{
+				newNode_->setCoord( xVals );
+				return 1;
+			}
+		}
+
+		// if(reachedGoal(xVals, endCoord_, tol)){
+
+		// 	newNode_->setCoord(xVals);
+		// 	return 3;
+		// }
+	}
+
+	if( eps_ >= distanceTemp ){
+
+		newNode_->setCoord( currSamplePt_ );
+		return 0;
+	}
+	else{
+
+		newNode_->setCoord( xEnd );
+		return 1;
+	}
+}
+
+int connect_star( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* newNode2_ , 
+	double eps_, double* map, int x_size, int y_size){
+	// '0' = reached, '1' = advanced, '2' = trapped
+
+	int extKey;
+
+	do{ 
+		extKey = extend_star( tree2_, newNode1_->getCoords(), newNode2_, eps_, map, x_size, y_size );
+
+	} while(extKey!=1);
+
+	if (extKey==0){
+		
+		return 0;
+	}
+	else if(extKey==2)
+		return 2;
+}
+
+void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ ){
+
+	NodeRRT temp = *tree1_;
+	*tree1_ = *tree2_;
+	*tree2_ = temp;
+}
