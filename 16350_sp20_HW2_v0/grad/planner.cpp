@@ -557,7 +557,7 @@ static void plannerRRT(
   *planlength = 0;
 
   //  parameters
-  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
+  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
   bool backwards = 1;
@@ -815,7 +815,7 @@ static void plannerRRT_connect(
 	*planlength = 0;
 
   //parameters
-  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
+  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
 
   // initialize
   bool treeConnected = false;
@@ -843,7 +843,7 @@ static void plannerRRT_connect(
 
     while(!treeConnected){
 
-      printf("entered while loop\n");
+      // printf("entered while loop\n");
       std::vector<double> currSamplePt;
 
       for (int i = 0; i<numofDOFs; i++){
@@ -859,34 +859,37 @@ static void plannerRRT_connect(
         // newNode1 = nullptr;
         NodeRRT* newNode1 = new NodeRRT;
         // follow this around to debug
-        printf("valid arm config\n");
+        // printf("valid arm config\n");
 
-        if(extend_star(tree1, currSamplePt, newNode1, eps, map, x_size, y_size)!=2){
+        if(extend_connect(tree1, currSamplePt, newNode1, eps, map, x_size, y_size)!=2){
 
           // newNode2 = nullptr;
-          printf("extend star if condition entered\n");
+          // printf("extend star if condition entered\n");
 
-          if (connect_star(tree2, newNode1, tail2, eps, map, x_size, y_size)==0 ){
+          if (connect(tree2, newNode1, tail2, eps, map, x_size, y_size)==0 ){
 
             treeConnected=true;
             // tail1->setCoord(newNode1->getCoords());
             // tail1->setParent( newNode1->getParent() );
             tail1 = newNode1;
             // tail2 = newNode2;         
-            printf("tree connected \n");
+            // printf("tree connected \n");
             break;
           }
         }
-        printf("just before swap trees\n");
-        std::swap(tree1, tree2);
+        // printf("just before swap trees\n");
+        swapTrees(tree1, tree2);
         // swapTrees( tree1, tree2 );
       }
     }
 
     // check which tree is which
-    printf("start backtracking\n");
+    // printf("start backtracking\n");
     bool forward;
     std::list< std::vector<double> > finPath;
+    // printf("startCoord [0] is %lf, [1] is %lf \n", startCoord[0], startCoord[1]);
+    // printf("tree1 get coords [0] is %lf, [1] is %lf \n", tree1->getCoords()[0], tree1->getCoords()[1]);
+    // printf("tree2 get coords [0] is %lf, [1] is %lf \n", tree2->getCoords()[0], tree2->getCoords()[1]);
     if(tree1->getCoords() == startCoord)
       forward=true;
     else
@@ -918,6 +921,9 @@ static void plannerRRT_connect(
           finPath.push_back( traverse->getCoords() );
         }
       }
+      finPath.pop_front(); finPath.pop_back();
+      finPath.push_front(startCoord);
+      finPath.push_back(endCoord);
     }
     else{
 
@@ -945,14 +951,32 @@ static void plannerRRT_connect(
           finPath.push_back( traverse->getCoords() );
         }
       }
+      finPath.pop_front(); finPath.pop_back();
+      finPath.push_front(startCoord);
+      finPath.push_back(endCoord);
     }
       // // mexPrintf("traverse while loop done \n");
       // // mexEvalString("drawnow");
+
+
+    // if ( tail->getParent()!=nullptr ){
+
+    //     finPath.push(tail->getCoords());
+    //     NodeRRT* traverse = tail;
+
+    //     while(traverse->getParent()!=nullptr){
+
+    //       traverse = traverse->getParent();
+    //       finPath.push( traverse->getCoords() );
+    //     }
+    //   }
+
+    // printf("finpath is populated\n");
     
     int sizePath =finPath.size();
     *planlength = sizePath;
 
-    // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
+    // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.front().size());
     // mexEvalString("drawnow");
 
     *plan = (double**) malloc(sizePath *sizeof(double*));
@@ -972,7 +996,7 @@ static void plannerRRT_connect(
       for(int j=0; j< numofDOFs; j++){
 
         (*plan)[i][j] = finPath.front()[j];
-        // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+        // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.front()[j]);
       }
 
       if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)

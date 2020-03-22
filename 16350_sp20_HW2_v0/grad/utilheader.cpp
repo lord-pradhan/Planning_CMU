@@ -324,8 +324,8 @@ NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ ){
 
 	treeDFS( root_, currSamplePt_ , min_queue);
 
-	mexPrintf("size of min_queue is %d \n", min_queue.size());
-	mexEvalString("drawnow");
+	// mexPrintf("size of min_queue is %d \n", min_queue.size());
+	// mexEvalString("drawnow");
 
 	return min_queue.top().nodeIn;
 }
@@ -356,7 +356,7 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 
 	// mexPrintf("Entered newConfig\n");
 	// mexEvalString("drawnow");
-	int numChecks = 20;
+	int numChecks = 500;
 	double distanceTemp = distanceRRT( nearestNode_->getCoords(), currSamplePt_);
 	double ratio_temp = std::min( distanceTemp , eps_ ) / distanceTemp;
 	// ratio_temp /= distanceRRT( nearestNode_->getCoords(), currSamplePt_ );
@@ -371,7 +371,7 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 													- nearestNode_->getCoords()[j] ) ) ;
 	}
 
-
+	std::vector<double> xValsPrev = nearestNode_->getCoords();
 	for(int i = 0; i<numChecks; i++){
 
 		std::vector<double> xVals;
@@ -388,10 +388,12 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 				return 2;
 			}
 			else{
-				newNode_->setCoord( xVals );
+				newNode_->setCoord( xValsPrev );
 				return 1;
 			}
 		}
+
+		xValsPrev = xVals;
 
 		if(reachedGoal(xVals, endCoord_, tol)){
 
@@ -430,19 +432,19 @@ bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, dou
 
 
 
-// functions for RRT* //////
+// functions for RRT connect //////
 
-int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
+int extend_connect( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
  double eps_, double* map, int x_size, int y_size ){
 
-	printf("entered extend_star \n");
+	// printf("entered extend_star \n");
 	NodeRRT* nearestNode = nearestNeighbour( currSamplePt_, tree1_ );
 
-	int returnKey = newConfig_star( currSamplePt_, nearestNode, newNode_, eps_,  map, x_size, y_size);
+	int returnKey = newConfig_connect( currSamplePt_, nearestNode, newNode_, eps_,  map, x_size, y_size);
 	// '0' = reached, '1' = advanced, '2' = trapped, '3' = goal reached 
-	printf("before setting parents and children\n");
+	// printf("before setting parents and children\n");
 	if( returnKey == 0){
-		printf("return key = 0\n");
+		// printf("return key = 0\n");
 		newNode_->setParent(nearestNode);
 		nearestNode->addChild( newNode_ );
 		// delete newNode;
@@ -450,7 +452,7 @@ int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* n
 	}
 
 	else if( returnKey == 1 ){
-		printf("return key is 1\n");
+		// printf("return key is 1\n");
 		newNode_->setParent(nearestNode);
 		nearestNode->addChild( newNode_ );
 		// delete newNode;
@@ -460,7 +462,7 @@ int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* n
 	else if( returnKey == 2 ){
 
 		// newNode = nullptr;
-		printf("return key is 2\n");
+		// printf("return key is 2\n");
 		delete newNode_;
 		return 2;	
 	}
@@ -474,14 +476,14 @@ int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* n
 	// 	// delete newNode;
 	// 	return 3;
 	// }
-	printf("exit extend_star\n");
+	// printf("exit extend_star\n");
 }
 
-int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
+int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
 				 double* map, int x_size, int y_size ){
 
-	printf("entered newConfig_star \n"); 
-	int numChecks = 20;
+	// printf("entered newConfig_star \n"); 
+	int numChecks = 500;
 	double distanceTemp = distanceRRT( nearestNode_->getCoords(), currSamplePt_);
 	double ratio_temp = std::min( distanceTemp , eps_ ) / distanceTemp;
 	// ratio_temp /= distanceRRT( nearestNode_->getCoords(), currSamplePt_ );
@@ -497,7 +499,7 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, No
 													- nearestNode_->getCoords()[j] ) ) ;
 	}
 
-
+	std::vector<double> xValsPrev = nearestNode_->getCoords();
 	for(int i = 0; i<numChecks; i++){
 
 		std::vector<double> xVals;
@@ -514,11 +516,13 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, No
 				return 2;
 			}
 			else{
-				printf("set new node coords advanced\n");
-				newNode_->setCoord( xVals );
+				// printf("set new node coords ad/vanced\n");
+				newNode_->setCoord( xValsPrev );
 				return 1;
 			}
 		}
+
+		xValsPrev = xVals;
 
 		// if(reachedGoal(xVals, endCoord_, tol)){
 
@@ -529,37 +533,42 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, No
 
 	if( eps_ >= distanceTemp ){
 
-		printf("set new node coords reached\n");
+		// printf("set new node coords reached\n");
 		newNode_->setCoord( currSamplePt_ );
 		return 0;
 	}
 	else{
-		printf("set new node coords advanced\n");
+		// printf("set new node coords advanced\n");
 		newNode_->setCoord( xEnd );
 		return 1;
 	}
 }
 
-int connect_star( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
+int connect( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
 	double eps_, double* map, int x_size, int y_size){
 	// '0' = reached, '1' = advanced, '2' = trapped
-	printf("entered connect_star \n");
+	// printf("entered connect_star \n");
 	int extKey;
 
 	do{ 
+		// tail2_ = nullptr;
 		NodeRRT* newNode2 = new NodeRRT;
-		extKey = extend_star( tree2_, newNode1_->getCoords(), newNode2, eps_, map, x_size, y_size );
+		extKey = extend_connect( tree2_, newNode1_->getCoords(), newNode2, eps_, map, x_size, y_size );
 
 		if (extKey==0){
 		
-			tail2_ = newNode2;
+			// tail2_->setCoord(newNode2->getCoords());
+			// tail2_->setParent(newNode2->getParent());
+			// tail2_ = newNode2;
+			// swapTrees(tail2_, newNode2);
+			*tail2_ = *newNode2;
 			return 0;
 		}
 		else if(extKey==2)
-			
+
 			return 2;
 
-		printf("extKey returned %d\n", extKey);
+		// printf("extKey returned %d\n", extKey);
 
 	} while(extKey==1);
 	// else

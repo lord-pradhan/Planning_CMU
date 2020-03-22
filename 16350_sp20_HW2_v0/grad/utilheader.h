@@ -158,15 +158,15 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, double tol);
 
 
-// RRT_star /////
+// RRT_connect /////
 
-int extend_star( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
+int extend_connect( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
  double eps_, double* map, int x_size, int y_size );
 
-int newConfig_star( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
+int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
          double* map, int x_size, int y_size );
 
-int connect_star( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
+int connect( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
   double eps_, double* map, int x_size, int y_size);
 
 void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ );
