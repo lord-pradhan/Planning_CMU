@@ -283,9 +283,9 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   // mexEvalString("drawnow");
 
   // parameters
-  int N_samples = 2000;
+  int N_samples = 10000;
   double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = sqrt(numofDOFs)*20.0*PI/180.0;
+  double nbd = sqrt(numofDOFs)*10.0*PI/180.0;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -334,15 +334,13 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
         // check connected or not
         if(!neighbours.empty()){
 
-          // mexPrintf("neighbours not empty \n");
-          // mexEvalString("drawnow");
           for (auto i1_node : neighbours){
 
             if( !same_component( pushNode, i1_node, listOfNodes ) && 
               can_connect( pushNode, i1_node, map, x_size, y_size ) ){
 
               pushNode.insertAdj( i1_node.getID() );
-              i1_node.insertAdj( pushNode.getID() );
+              listOfNodes[i1_node.getID()].insertAdj( pushNode.getID() );
             }
           }
         }
@@ -365,8 +363,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     std::stack<NodePRM> start_stack, end_stack;
     NodePRM startNode, endNode;
 
-    mexPrintf("size of start and end vectors - %d and %d \n", startCoord.size(), endCoord.size());
-    mexEvalString("drawnow");
+    // mexPrintf("size of start and end vectors - %d and %d \n", startCoord.size(), endCoord.size());
+    // mexEvalString("drawnow");
 
     startNode.setCoord( startCoord );
     startNode.setElemID(elemCt);
@@ -407,8 +405,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       if( can_connect( startNode, start_stack.top(), map, x_size, y_size ) ){
         
-        listOfNodes.end()[-2].insertAdj( start_stack.top().getID() );
-        start_stack.top().insertAdj( listOfNodes.end()[-2].getID() );
+        listOfNodes[N_samples].insertAdj( start_stack.top().getID() );
+        listOfNodes[start_stack.top().getID()].insertAdj( listOfNodes[N_samples].getID() );
         ct2++;
         break;
       }
@@ -423,8 +421,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       if( can_connect( endNode, end_stack.top(), map, x_size, y_size ) ){
         
-        listOfNodes.back().insertAdj( end_stack.top().getID() );
-        end_stack.top().insertAdj( listOfNodes.back().getID() );
+        listOfNodes[N_samples+1].insertAdj( end_stack.top().getID() );
+        listOfNodes[end_stack.top().getID()].insertAdj( listOfNodes[N_samples+1].getID() );
         ct3++;
         break;
       }
@@ -441,11 +439,11 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     //// ****** Query done, now Dijsktraa's *********//////
 
     std::priority_queue< NodePRM , std::vector<NodePRM>, CompareF > open_set;
-    listOfNodes.end()[-2].setG(0.0);
-    open_set.push( listOfNodes.end()[-2] );
+    listOfNodes[N_samples].setG(0.0);
+    open_set.push( listOfNodes[N_samples] );
 
     int ct4=0;
-    while( !listOfNodes.back().isExpanded() && !open_set.empty() && ct4<100000){
+    while( !listOfNodes[N_samples+1].isExpanded() && !open_set.empty() && ct4<100000){
 
       // NodePRM temp = open_set.top();
       // open_set.pop();
@@ -453,15 +451,17 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       listOfNodes[tempID].expand();
       open_set.pop();
 
+      printf("listOfNodes[tempID].getG() is %lf \n tempID is %d \n ", listOfNodes[tempID].getG(), tempID);
+
       if(listOfNodes[tempID].getAdjIDs().empty()){
         printf("someone doesnt have any connections :( \n");
         break;
       }
+
       for(auto succesor : listOfNodes[tempID].getAdjIDs() ){
 
         printf("listOfNodes[succesor].getG() is %lf \n succesor is %d \n", 
           listOfNodes[succesor].getG(), succesor);
-        printf("listOfNodes[tempID].getG() is %lf \n tempID is %d \n ", listOfNodes[tempID].getG(), tempID);
         printf("distanceFn( listOfNodes[tempID], listOfNodes[succesor] ) is %lf\n",
          distanceFn( listOfNodes[tempID], listOfNodes[succesor] ));
 
@@ -474,11 +474,17 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
         }
       }
 
-      if(listOfNodes.back().isExpanded()){
+      if(listOfNodes[N_samples+1].isExpanded()){
 
-        mexPrintf("target expanded \n", ct4);
-        mexEvalString("drawnow");
-      }     
+        printf("target expanded %d \n", ct4);
+        break;
+
+      } else if(open_set.empty()){
+
+        printf("open set is empty\n");
+        printf("path can't be found\n");
+        return;
+      }
 
       ct4++;
     }
@@ -486,23 +492,26 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     mexPrintf("end while loop 4 - %d \n", ct4);
     mexEvalString("drawnow");
 
+    printf("listOfNodes.back().getG() is %lf \n listOfNodes.back().getAdjIDs()[0] is %d \n", 
+      listOfNodes[N_samples+1].getG(), listOfNodes[N_samples+1].getAdjIDs()[0]);
+
 
     ///////// start backtracking ////////////
     std::stack<NodePRM> optPath;
-    optPath.push( listOfNodes.back() );
+    optPath.push( listOfNodes[N_samples+1] );
 
     int ct5=0;
-    while( optPath.top().getID() != listOfNodes.end()[-2].getID() && ct5<100000 ){
+    while( optPath.top().getID() != listOfNodes[N_samples].getID() && ct5<100000 ){
 
       double min_G = std::numeric_limits<double>::infinity(); 
       int finID;
-      NodePRM temp1 = optPath.top();
+      int tempID = optPath.top().getID();
 
-      for( auto succesor : temp1.getAdjIDs() ){
+      for( auto succesor : listOfNodes[tempID].getAdjIDs() ){
 
-        if(min_G > temp1.getG() + distanceFn( listOfNodes[succesor], temp1 ) ){
+        if(min_G > listOfNodes[succesor].getG() + distanceFn(listOfNodes[succesor], listOfNodes[tempID])){
 
-          min_G = temp1.getG() + distanceFn( listOfNodes[succesor], temp1 );
+          min_G = listOfNodes[succesor].getG() + distanceFn( listOfNodes[succesor], listOfNodes[tempID] );
           finID = listOfNodes[succesor].getID();
         }
       }
@@ -514,10 +523,11 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     mexPrintf("end backtracking while loop - %d \n Start populating plan", ct5);
     mexEvalString("drawnow");
     // optPath.pop();
-    *planlength = optPath.size();
+    int sizePathFin = optPath.size();
+    *planlength = sizePathFin;
 
-    *plan = (double**) malloc(optPath.size() *sizeof(double*));
-    for(int i=0; i < optPath.size(); i++ ){
+    *plan = (double**) malloc(sizePathFin *sizeof(double*));
+    for(int i=0; i < sizePathFin; i++ ){
 
       (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
 

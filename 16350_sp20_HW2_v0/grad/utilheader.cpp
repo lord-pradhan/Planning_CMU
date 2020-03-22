@@ -114,7 +114,7 @@ bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<Nod
 	std::stack <NodePRM> stackDFS;
 	std::vector<bool> visited( listOfNodesIn.size() , false );
 
-	stackDFS.push(pushNodeIn);
+	stackDFS.push(existingNodeIn);
 
 	// mexPrintf("entering same_component while loop \n");
 	// mexEvalString("drawnow");
@@ -166,7 +166,7 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map,
 		for(int j = 0; j< pushNodeIn.getCoords().size() ; j++){
 
 			xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
-					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / 20.0 );
+					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / numChecks );
 		}
 
 		// double anglesArr[ pushNodeIn.getCoords().size() ];
