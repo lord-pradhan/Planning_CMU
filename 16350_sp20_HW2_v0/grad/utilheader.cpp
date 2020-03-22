@@ -116,8 +116,8 @@ bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<Nod
 
 	stackDFS.push(pushNodeIn);
 
-	mexPrintf("entering same_component while loop \n");
-	mexEvalString("drawnow");
+	// mexPrintf("entering same_component while loop \n");
+	// mexEvalString("drawnow");
 
 	while(!stackDFS.empty()){
 
@@ -135,8 +135,8 @@ bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<Nod
 
 				if( pushNodeIn.getID() == i ){
 				  
-					mexPrintf("exiting same_component while loop true \n");
-					mexEvalString("drawnow");
+					// mexPrintf("exiting same_component while loop true \n");
+					// mexEvalString("drawnow");
 					return true;
 				}
 
@@ -145,8 +145,8 @@ bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<Nod
 			}
 		}
 	}
-	mexPrintf("exiting same_component while loop false \n");
-	mexEvalString("drawnow");
+	// mexPrintf("exiting same_component while loop false \n");
+	// mexEvalString("drawnow");
 
 	return false;
 }
@@ -155,9 +155,9 @@ bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<Nod
 bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, 
 	int x_size, int y_size){
 
-	mexPrintf("Entered can_connect \n");
-	mexEvalString("drawnow");
-	int numChecks = 20;
+	// mexPrintf("Entered can_connect \n");
+	// mexEvalString("drawnow");
+	int numChecks = 200;
 
 	for(int i = 0; i<numChecks; i++){
 
@@ -174,14 +174,14 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map,
 
 		if(IsValidArmConfiguration( xVals.data(), pushNodeIn.getCoords().size(), map, x_size, y_size)==0 ){
 			
-			mexPrintf("Exiting can_connect false \n");
-			mexEvalString("drawnow");
+			// mexPrintf("Exiting can_connect false \n");
+			// mexEvalString("drawnow");
 			return false;
 		}
 	}
 
-	mexPrintf("Exiting can_connect true\n");
-	mexEvalString("drawnow");
+	// mexPrintf("Exiting can_connect true\n");
+	// mexEvalString("drawnow");
 	return true;
 }
 
