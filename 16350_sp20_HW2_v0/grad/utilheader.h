@@ -50,8 +50,21 @@ public:
   void setG( double G_val_ );
 
   void expand();
-
 };
+
+// class NodePQ_PRM{
+
+// public:
+//   NodeRRT* nodeIn;
+//   std::vector<double> currSamplePt;
+
+//   NodePQ();
+
+//   NodePQ(NodeRRT* nodeIn_, std::vector<double> currSamplePt_);
+
+//   double getDist() const;
+// };
+
 
 // define useful functions
 double randomDouble( double LB, double UB );

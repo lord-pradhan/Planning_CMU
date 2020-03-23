@@ -1,4 +1,4 @@
-/*=================================================================
+ /*=================================================================
  *
  * planner.c
  *
@@ -267,7 +267,19 @@ static void planner(
   return;
 }
 
+struct listStruct {
+    NodePRM mapNode;
+    NodePRM testNode;
+    listStruct(NodePRM mapNode_, NodePRM testNode_) : mapNode(mapNode_), testNode(testNode_) {}
+};
 
+struct list_comp {
+
+    bool operator() (listStruct left, listStruct right) const { 
+       
+       return distanceFn(left.mapNode, left.testNode) < distanceFn(right.mapNode, right.testNode);
+    }
+};
 
 
 ///// Begin planners ////////
@@ -283,15 +295,14 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   // mexEvalString("drawnow");
 
   // parameters
-  int N_samples = 10000;
+  int N_samples = 100000;
   double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = sqrt(numofDOFs)*10.0*PI/180.0;
+  double nbd = sqrt(numofDOFs)*3.0*PI/180.0;
 
   //initialize
   int ct=0, elemCt = 0;
   std::vector <NodePRM> listOfNodes;
   srand(time(nullptr));
-  // srand(time(0));
 
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
@@ -349,8 +360,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
         elemCt++;
       }
 
-    //   mexPrintf("Didn't find valid arm config \n");
-      // mexEvalString("drawnow");
       ct1++;
     }
 
@@ -360,11 +369,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
     /////// Query phase /////
     // post-processing done, now find nearest neighbours for start and goal ////////
-    std::stack<NodePRM> start_stack, end_stack;
+    // std::stack<NodePRM> start_stack, end_stack;
     NodePRM startNode, endNode;
-
-    // mexPrintf("size of start and end vectors - %d and %d \n", startCoord.size(), endCoord.size());
-    // mexEvalString("drawnow");
 
     startNode.setCoord( startCoord );
     startNode.setElemID(elemCt);
@@ -374,65 +380,55 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     endNode.setElemID(elemCt);
     elemCt++;
 
-
-    int minStart=0, minEnd=0;
-
+    std::list<listStruct> start_list, end_list;
 
     for( NodePRM i_node : listOfNodes ){
 
-      double startDist = distanceFn( i_node, startNode );
-      double endDist = distanceFn( i_node, endNode );
-
-      if ( startDist < distanceFn( listOfNodes[minStart], startNode ) ){
-        
-        minStart = i_node.getID();
-        start_stack.push( i_node );
-      }
-
-      if ( endDist < distanceFn( listOfNodes[minEnd], endNode ) ){
-        
-        minEnd = i_node.getID();
-        end_stack.push( i_node );
-      }   
+      listStruct startStruct( i_node, startNode );
+      listStruct endStruct( i_node, endNode );
+      start_list.push_back( startStruct );
+      end_list.push_back( endStruct );
     }
 
+    start_list.sort( list_comp() );
+    end_list.sort( list_comp() );
 
     listOfNodes.push_back(startNode);
     listOfNodes.push_back(endNode);
 
-    int ct2 = 0;
-    while( !start_stack.empty() ){//&& ct2<1000 ){
+    int ctStart = 0;
+    while(!start_list.empty()){
 
-      if( can_connect( startNode, start_stack.top(), map, x_size, y_size ) ){
-        
-        listOfNodes[N_samples].insertAdj( start_stack.top().getID() );
-        listOfNodes[start_stack.top().getID()].insertAdj( listOfNodes[N_samples].getID() );
-        ct2++;
+      if( can_connect( startNode, start_list.front().mapNode, map, x_size, y_size ) ){
+
+        listOfNodes[N_samples].insertAdj( start_list.front().mapNode.getID() );
+        listOfNodes[start_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples].getID() );        
+        ctStart++;
         break;
       }
       else
-        start_stack.pop();
+        start_list.pop_front();
 
-      ct2++;
+      ctStart++;
     }
 
-    int ct3=0;
-    while(!end_stack.empty() ){// && ct3<1000){
+    int ctEnd =0;
+    while(!end_list.empty()){
 
-      if( can_connect( endNode, end_stack.top(), map, x_size, y_size ) ){
-        
-        listOfNodes[N_samples+1].insertAdj( end_stack.top().getID() );
-        listOfNodes[end_stack.top().getID()].insertAdj( listOfNodes[N_samples+1].getID() );
-        ct3++;
-        break;
+      if( can_connect( endNode, end_list.front().mapNode, map, x_size, y_size ) ){
+
+        listOfNodes[N_samples+1].insertAdj( end_list.front().mapNode.getID() );
+        listOfNodes[end_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples+1].getID() ); 
+        ctEnd++;
+        break;      
       }
       else
-        end_stack.pop();
+        end_list.pop_front();
 
-      ct3++;
+      ctEnd++;
     }
 
-    mexPrintf("Ended while loops for finding closest points - %d and %d \n", ct2, ct3);
+    mexPrintf("Ended while loops for finding closest points - %d and %d \n", ctStart, ctEnd);
     mexEvalString("drawnow");
 
 

@@ -157,7 +157,7 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map,
 
 	// mexPrintf("Entered can_connect \n");
 	// mexEvalString("drawnow");
-	int numChecks = 200;
+	int numChecks = 20;
 
 	for(int i = 0; i<numChecks; i++){
 
@@ -168,9 +168,6 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map,
 			xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
 					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / numChecks );
 		}
-
-		// double anglesArr[ pushNodeIn.getCoords().size() ];
-		// std::copy( xVals.begin(), xVals.end(), anglesArr );
 
 		if(IsValidArmConfiguration( xVals.data(), pushNodeIn.getCoords().size(), map, x_size, y_size)==0 ){
 			
