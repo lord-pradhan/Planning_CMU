@@ -852,11 +852,11 @@ static void plannerRRT_star(
     // initialize tree with start / end
     // mexPrintf("before initializing trees \n");
     // mexEvalString("drawnow");
-    NodeRRT* root = new NodeRRT;
+    NodeRRT_star* root = new NodeRRT_star;
     root->setParent(nullptr);
     root->setCoord( startCoord );
 
-    NodeRRT* tail = new NodeRRT;
+    NodeRRT_star* tail = new NodeRRT_star;
     tail->setParent(nullptr);
 
     int ct1=0;
@@ -902,7 +902,7 @@ static void plannerRRT_star(
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-        int marker = extend( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
+        extend_star( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
         // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
         // mexPrintf("extend returns %d \n", marker);
         // mexEvalString("drawnow");
@@ -911,8 +911,6 @@ static void plannerRRT_star(
           goalRegion=true;
       }
 
-
-    
   return;
 }
 

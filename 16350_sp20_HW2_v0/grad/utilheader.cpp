@@ -463,17 +463,6 @@ int extend_connect( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT
 		delete newNode_;
 		return 2;	
 	}
-
-	// else if(returnKey == 3){
-
-	// 	tail_->setCoord( newNode->getCoords() );
-	// 	tail_->setParent(nearestNode);
-	// 	nearestNode->addChild(tail_);
-	// 	// newNode = nullptr;
-	// 	// delete newNode;
-	// 	return 3;
-	// }
-	// printf("exit extend_star\n");
 }
 
 int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
@@ -483,10 +472,6 @@ int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_,
 	int numChecks = 500;
 	double distanceTemp = distanceRRT( nearestNode_->getCoords(), currSamplePt_);
 	double ratio_temp = std::min( distanceTemp , eps_ ) / distanceTemp;
-	// ratio_temp /= distanceRRT( nearestNode_->getCoords(), currSamplePt_ );
-	// mexPrintf("Ratio is %lf \n distance is %lf \n", ratio_temp, distanceTemp );
-	// mexEvalString("drawnow");
-	// '0' = reached, '1' = advanced, '2' = trapped, '3' = goal reached 
 
 	std::vector<double> xEnd;
 
@@ -520,12 +505,6 @@ int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_,
 		}
 
 		xValsPrev = xVals;
-
-		// if(reachedGoal(xVals, endCoord_, tol)){
-
-		// 	newNode_->setCoord(xVals);
-		// 	return 3;
-		// }
 	}
 
 	if( eps_ >= distanceTemp ){
@@ -577,4 +556,251 @@ void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ ){
 	NodeRRT temp = *tree1_;
 	*tree1_ = *tree2_;
 	*tree2_ = temp;
+}
+
+
+
+
+///// RRT* ///////////
+NodeRRT_star::NodeRRT_star(): G_val(std::numeric_limits<double>::infinity()) {}
+
+std::vector <double> NodeRRT_star::getCoords() const{
+
+	return elemCoords;
+}
+
+NodeRRT_star* NodeRRT_star::getParent() const{
+
+	return parent;
+}
+
+std::vector<NodeRRT_star*> NodeRRT_star::getChildren() const{
+
+	return children;
+}
+
+// double NodeRRT_star::getG() const{
+// 	return G_val;
+// }
+
+void NodeRRT_star::addChild( NodeRRT_star*  child_){
+
+	children.push_back( child_ );
+}
+
+void NodeRRT_star::setParent( NodeRRT_star* parent_ ){
+
+	parent = parent_;
+}
+
+void NodeRRT_star::setCoord(std::vector <double> coordsIn){
+
+	elemCoords = coordsIn;
+}
+
+void NodeRRT_star::popChild( NodeRRT_star* popNode ){
+
+	children.erase(std::find(children.begin(),children.end(), popNode));
+}
+
+// void NodeRRT_star::setG(double G_val_){G_val = G_val_;}
+
+
+
+int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, NodeRRT_star* newNode_ , double eps_, 
+ double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol ){
+
+	// mexPrintf("Entered newConfig\n");
+	// mexEvalString("drawnow");
+	int numChecks = 500;
+	double distanceTemp = distanceRRT( nearestNode_->getCoords(), currSamplePt_);
+	double ratio_temp = std::min( distanceTemp , eps_ ) / distanceTemp;
+	// ratio_temp /= distanceRRT( nearestNode_->getCoords(), currSamplePt_ );
+	// mexPrintf("Ratio is %lf \n distance is %lf \n", ratio_temp, distanceTemp );
+	// mexEvalString("drawnow");
+
+	std::vector<double> xEnd;
+
+	for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
+
+		xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+													- nearestNode_->getCoords()[j] ) ) ;
+	}
+
+	std::vector<double> xValsPrev = nearestNode_->getCoords();
+	for(int i = 0; i<numChecks; i++){
+
+		std::vector<double> xVals;
+
+		for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
+
+			xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+													- nearestNode_->getCoords()[j] ) / (double) numChecks );
+		}
+
+		if(IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) == 0){
+
+			if(i==0){
+				return 2;
+			}
+			else{
+				newNode_->setCoord( xValsPrev );
+				return 1;
+			}
+		}
+
+		xValsPrev = xVals;
+
+		if(reachedGoal(xVals, endCoord_, tol)){
+
+			newNode_->setCoord(xVals);
+			return 3;
+		}
+	}
+
+	if( eps_ >= distanceTemp ){
+
+		newNode_->setCoord( currSamplePt_ );
+		return 0;
+	}
+	else{
+
+		newNode_->setCoord( xEnd );
+		return 1;
+	}
+}
+
+
+bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, int x_size, int y_size){
+
+	// mexPrintf("Entered can_connect \n");
+	// mexEvalString("drawnow");
+	int numChecks = 200;
+
+	for(int i = 0; i<numChecks; i++){
+
+		std::vector<double> xVals;
+
+		for(int j = 0; j< node1->getCoords().size() ; j++){
+
+			xVals.push_back( node1->getCoords()[j] + (double) (i+1) * 
+					( node2->getCoords()[j] - node1->getCoords()[j] ) / numChecks );
+		}
+
+		if(IsValidArmConfiguration( xVals.data(), node1->getCoords().size(), map, x_size, y_size)==0 ){
+			
+			// mexPrintf("Exiting can_connect false \n");
+			// mexEvalString("drawnow");
+			return false;
+		}
+	}
+
+	// mexPrintf("Exiting can_connect true\n");
+	// mexEvalString("drawnow");
+	return true;
+}
+
+
+void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_, double nearDist_ ){
+
+	if ( !nodeIn->getChildren().empty() ){
+
+		for (auto i : nodeIn->getChildren()){
+
+			// NodePQ nodeTemp( i, currSamplePt_ );
+			// min_queue.push( nodeTemp );
+			if( distanceRRT( i->getCoords() , newNode_->getCoords() ) < nearDist ){
+
+				nearNodes_.push_back( i );
+			}
+
+			nearDFS(  i, newNode_, nearNodes_, nearDist_ );
+		}
+
+		return;
+	}
+	else {
+
+		return;
+	}
+}
+
+void nearFn( NodeRRT_star* root_, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_ ){
+
+	double nearDist = ;
+
+	if( distanceRRT(root_->getCoords() , newNode_->getCoords() ) < nearDist ){
+
+		nearNodes_.push_back( root_ );
+	}
+
+	nearDFS(root_, newNode_, nearNodes_, nearDist);
+}
+
+
+void extend_star( NodeRRT_star* root_, std::vector<double> currSamplePt_, double eps_, 
+	double* map, int x_size, int y_size ){
+
+	NodeRRT_star* nearestNode = nearestNeighbour( currSamplePt_, root_ );
+
+	NodeRRT_star* newNode = new NodeRRT_star;
+
+	int steerKey = newConfig_star( currSamplePt_, nearestNode_, newNode, eps_, map, x_size, y_size );
+
+	if(steerKey==2)
+		return;
+
+	if( can_connect_star( nearestNode, newNode ) ){
+
+		NodeRRT_star* minNode = nearestNode;
+
+		std::vector<NodeRRT_star*> nearNodes;
+
+		nearFn( root_, newNode, nearNodes );
+
+		for(auto i : nearNodes){
+
+			if( can_connect_star( i, newNode, map, x_size, y_size ) ){
+
+				double costTemp = costOfNode(i) + distanceRRT( newNode->getCoords(), i->getCoords() );
+
+				if( costTemp < costOfNode(newNode->getCoords()) ){
+
+					minNode = i;										
+				}
+			}
+		}
+
+		minNode->addChild(newNode);
+		newNode->setParent(minNode);
+
+		for( auto i : nearNodes ){
+
+			if( i != minNode ){
+
+				if( can_connect_star(i, newNode) && (costOfNode(i) > 
+					costOfNode(newNode)+distanceRRT(newNode->getCoords(), i->getCoords())) ){
+
+					NodeRRT_star* tempParent = i->getParent();
+					newNode->setParent(tempParent);
+					tempParent->addChild(newNode);
+					tempParent->popChild(i);	
+				}
+			}
+		}
+	}
+}
+
+double costOfNode( NodeRRT_star* nodeIn ){
+
+	double cost = 0;
+
+	NodeRRT* traverse = nodeIn;
+	while(traverse->getParent()!=nullptr){
+
+		cost+= distanceRRT( traverse->getCoords(), traverse->getParent()->getCoords() );
+		traverse= traverse->getParent();
+	}
+
+	return cost;
 }

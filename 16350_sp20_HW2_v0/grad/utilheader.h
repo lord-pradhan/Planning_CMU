@@ -184,4 +184,37 @@ int connect( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ ,
 
 void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ );
 
+
+////// RRT* //////
+class NodeRRT_star{
+
+private:
+  std::vector <double> elemCoords;
+  NodeRRT_star* parent;
+  std::vector<NodeRRT*> children;
+  double G_val;
+
+public:
+  NodeRRT(); 
+
+  std::vector <double> getCoords() const;
+
+  NodeRRT* getParent() const;
+
+  std::vector<NodeRRT*> getChildren() const;
+
+  double getG() const;
+
+  void addChild( NodeRRT*  child_);
+
+  void setParent( NodeRRT* parent_ );
+
+  void setCoord(std::vector <double> coordsIn);
+
+  void setG(double G_val_);
+}
+
+void extend_star(  );
+
+
 #endif
