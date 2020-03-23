@@ -295,9 +295,9 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   // mexEvalString("drawnow");
 
   // parameters
-  int N_samples = 100000;
+  int N_samples = 7000;
   double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = sqrt(numofDOFs)*3.0*PI/180.0;
+  double nbd = sqrt(numofDOFs)*35.0*PI/180.0;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -583,7 +583,7 @@ static void plannerRRT(
   double eps = sqrt(numofDOFs)*5.0*PI/180.0;
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
-  bool backwards = 1;
+  bool backwards = 0;
 
   // initialize
   bool goalRegion = false;
@@ -800,7 +800,9 @@ static void plannerRRT(
 
 
 
+
 // ********PLANNER RRT_STAR ******* ///////
+//////////////////////////////////////
 static void plannerRRT_star(
 		   double*	map,
 		   int x_size,
@@ -814,15 +816,114 @@ static void plannerRRT_star(
 	//no plan by default
 	*plan = NULL;
 	*planlength = 0;
-    
+   
+  //  parameters
+  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  double tol = 2.0*PI/180;
+  double goalProb = 0.2;
+  // bool backwards = 1;
 
+  // initialize
+  bool goalRegion = false;
+  srand(time(nullptr));
+  double angleUB = 2.0*3.14, angleLB = 0.0;
+  int goalSampling;
+
+  // store start and end vectors
+  std::vector<double> startCoordActual(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
+  std::vector<double> endCoordActual(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+
+  std::vector<double> startCoord, endCoord;
+
+  if (backwards){
+
+    startCoord = endCoordActual;
+    endCoord = startCoordActual;
+  }
+  else
+  {
+    startCoord = startCoordActual;
+    endCoord = endCoordActual;
+  }
+ 
+  if(IsValidArmConfiguration( startCoordActual.data(), numofDOFs, map, x_size, y_size )==1 
+    && IsValidArmConfiguration( endCoordActual.data(), numofDOFs, map, x_size, y_size )==1 ){
+
+    // initialize tree with start / end
+    // mexPrintf("before initializing trees \n");
+    // mexEvalString("drawnow");
+    NodeRRT* root = new NodeRRT;
+    root->setParent(nullptr);
+    root->setCoord( startCoord );
+
+    NodeRRT* tail = new NodeRRT;
+    tail->setParent(nullptr);
+
+    int ct1=0;
+    // begin while loop
+    while( !goalRegion && ct1<10000000 ){
+
+      ct1++;
+      // mexPrintf("entered main while loop \n");
+      // mexEvalString("drawnow");
+      std::vector<double> currSamplePt;
+
+      // srand(time(nullptr));
+      double probTemp = randomDouble(0.0, 1.0);
+
+      if (probTemp < goalProb)
+          goalSampling =1;
+      else
+          goalSampling = 0;
+
+
+      if(goalSampling==0){
+
+        for (int i = 0; i<numofDOFs; i++){
+
+          double temp = randomDouble(angleLB, angleUB);
+          currSamplePt.push_back( temp );
+          // mexPrintf("random point is %f \n", temp);
+          // mexEvalString("drawnow");
+        }
+        // goalSampling=1;
+      }
+      else{
+
+        for (int i = 0; i<numofDOFs; i++){
+
+          double temp = randomDouble(endCoord[i] - tol, endCoord[i]+tol);
+          currSamplePt.push_back( temp );
+          // mexPrintf("goal point is %f \n", temp);
+          // mexEvalString("drawnow");
+        }
+        // goalSampling=0;
+      }
+
+      if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
+
+        int marker = extend( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
+        // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
+        // mexPrintf("extend returns %d \n", marker);
+        // mexEvalString("drawnow");
+
+        if(marker==3)
+          goalRegion=true;
+      }
 
 
     
   return;
 }
 
+
+
+
+
+
+
 // ********PLANNER RRT CONNECT ******* ///////
+////////////////////////////////////////////////
 static void plannerRRT_connect(
 		   double*	map,
 		   int x_size,
