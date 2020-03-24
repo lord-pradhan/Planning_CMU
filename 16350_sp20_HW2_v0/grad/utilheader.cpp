@@ -560,8 +560,9 @@ void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ ){
 
 
 
+//////////////////////////////////////
+///// ******* RRT* ********///////////
 
-///// RRT* ///////////
 NodeRRT_star::NodeRRT_star(): G_val(std::numeric_limits<double>::infinity()) {}
 
 std::vector <double> NodeRRT_star::getCoords() const{
@@ -603,8 +604,53 @@ void NodeRRT_star::popChild( NodeRRT_star* popNode ){
 	children.erase(std::find(children.begin(),children.end(), popNode));
 }
 
+
+// class for priority queue
+NodePQ_star::NodePQ_star( NodeRRT_star* nodeIn_, std::vector<double> currSamplePt_ ): 
+nodeIn(nodeIn_), currSamplePt(currSamplePt_) {}
+
+NodePQ_star::NodePQ_star(){}
+
+double NodePQ_star::getDist() const{
+
+	return distanceRRT( currSamplePt, nodeIn->getCoords() );
+}
+
 // void NodeRRT_star::setG(double G_val_){G_val = G_val_;}
 
+NodeRRT_star* nearestNeighbour_star( std::vector<double> currSamplePt_, NodeRRT_star* root_ ){
+
+	std::priority_queue< NodePQ_star, std::vector<NodePQ_star>, CompareNN_star > min_queue;
+
+	NodePQ_star nodeTemp( root_, currSamplePt_ );
+	min_queue.push( nodeTemp );
+
+	treeDFS_star( root_, currSamplePt_ , min_queue);
+
+	// mexPrintf("size of min_queue is %d \n", min_queue.size());
+	// mexEvalString("drawnow");
+
+	return min_queue.top().nodeIn;
+}
+
+void treeDFS_star( NodeRRT_star* nodeIn, std::vector<double> currSamplePt_, 
+	std::priority_queue< NodePQ_star, std::vector<NodePQ_star>, CompareNN_star > &min_queue ){
+
+	if ( !nodeIn->getChildren().empty() ){
+
+		for (auto i : nodeIn->getChildren()){
+
+			NodePQ_star nodeTemp( i, currSamplePt_ );
+			min_queue.push( nodeTemp );
+			treeDFS_star(  i, currSamplePt_, min_queue );
+		}
+		return;
+	}
+	else {
+
+		return;
+	}
+}
 
 
 int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, NodeRRT_star* newNode_ , double eps_, 
@@ -653,7 +699,7 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode
 
 		if(reachedGoal(xVals, endCoord_, tol)){
 
-			newNode_->setCoord(xVals);
+			newNode_->setCoord(xVals);			
 			return 3;
 		}
 	}
@@ -701,7 +747,8 @@ bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, i
 }
 
 
-void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_, double nearDist_ ){
+void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_, 
+	double nearDist_ ){
 
 	if ( !nodeIn->getChildren().empty() ){
 
@@ -709,7 +756,7 @@ void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_
 
 			// NodePQ nodeTemp( i, currSamplePt_ );
 			// min_queue.push( nodeTemp );
-			if( distanceRRT( i->getCoords() , newNode_->getCoords() ) < nearDist ){
+			if( distanceRRT( i->getCoords() , newNode_->getCoords() ) < nearDist_ ){
 
 				nearNodes_.push_back( i );
 			}
@@ -725,38 +772,41 @@ void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_
 	}
 }
 
-void nearFn( NodeRRT_star* root_, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_ ){
+void nearFn( NodeRRT_star* root_, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_,
+ double nearDist_ ){
 
-	double nearDist = ;
+	// double nearDist = std::min( eps_ );
 
-	if( distanceRRT(root_->getCoords() , newNode_->getCoords() ) < nearDist ){
+	if( distanceRRT(root_->getCoords() , newNode_->getCoords() ) < nearDist_ ){
 
 		nearNodes_.push_back( root_ );
 	}
 
-	nearDFS(root_, newNode_, nearNodes_, nearDist);
+	nearDFS(root_, newNode_, nearNodes_, nearDist_);
 }
 
 
-void extend_star( NodeRRT_star* root_, std::vector<double> currSamplePt_, double eps_, 
-	double* map, int x_size, int y_size ){
+int extend_star( NodeRRT_star* root_, std::vector<NodeRRT_star*> &goalNodes_, 
+	std::vector<double> currSamplePt_, double eps_, double* map, int x_size, int y_size, 
+	std::vector<double> endCoord_, double tol_, double nearDist_){
 
-	NodeRRT_star* nearestNode = nearestNeighbour( currSamplePt_, root_ );
+	NodeRRT_star* nearestNode = nearestNeighbour_star( currSamplePt_, root_ );
 
 	NodeRRT_star* newNode = new NodeRRT_star;
 
-	int steerKey = newConfig_star( currSamplePt_, nearestNode_, newNode, eps_, map, x_size, y_size );
+	int steerKey = newConfig_star( currSamplePt_, nearestNode, newNode, eps_, map, x_size, y_size,
+					endCoord_, tol_ );
 
 	if(steerKey==2)
-		return;
+		return steerKey;
 
-	if( can_connect_star( nearestNode, newNode ) ){
+	if( can_connect_star( nearestNode, newNode, map, x_size, y_size ) ){
 
 		NodeRRT_star* minNode = nearestNode;
 
 		std::vector<NodeRRT_star*> nearNodes;
 
-		nearFn( root_, newNode, nearNodes );
+		nearFn( root_, newNode, nearNodes, nearDist_ );
 
 		for(auto i : nearNodes){
 
@@ -764,7 +814,7 @@ void extend_star( NodeRRT_star* root_, std::vector<double> currSamplePt_, double
 
 				double costTemp = costOfNode(i) + distanceRRT( newNode->getCoords(), i->getCoords() );
 
-				if( costTemp < costOfNode(newNode->getCoords()) ){
+				if( costTemp < costOfNode(newNode) ){
 
 					minNode = i;										
 				}
@@ -778,7 +828,7 @@ void extend_star( NodeRRT_star* root_, std::vector<double> currSamplePt_, double
 
 			if( i != minNode ){
 
-				if( can_connect_star(i, newNode) && (costOfNode(i) > 
+				if( can_connect_star(i, newNode, map, x_size, y_size ) && (costOfNode(i) > 
 					costOfNode(newNode)+distanceRRT(newNode->getCoords(), i->getCoords())) ){
 
 					NodeRRT_star* tempParent = i->getParent();
@@ -789,13 +839,22 @@ void extend_star( NodeRRT_star* root_, std::vector<double> currSamplePt_, double
 			}
 		}
 	}
+
+	if( steerKey==3 ){
+
+		goalNodes_.push_back(newNode);
+		return steerKey;
+	}
+
+	return steerKey;
+
 }
 
 double costOfNode( NodeRRT_star* nodeIn ){
 
 	double cost = 0;
 
-	NodeRRT* traverse = nodeIn;
+	NodeRRT_star* traverse = nodeIn;
 	while(traverse->getParent()!=nullptr){
 
 		cost+= distanceRRT( traverse->getCoords(), traverse->getParent()->getCoords() );
@@ -803,4 +862,43 @@ double costOfNode( NodeRRT_star* nodeIn ){
 	}
 
 	return cost;
+}
+
+double volSphereFn(int numofDOFs){
+
+	double vol;
+	switch(numofDOFs){
+
+		case 1:	vol = 2.0;
+			break;
+
+		case 2: vol = 3.142;
+			break;
+
+		case 3: vol = 4.189;
+			break;
+
+		case 4: vol = 4.935;
+			break;
+
+		case 5: vol = 5.264;
+			break;
+
+		case 6: vol = 5.168;
+			break;
+
+		case 7: vol = 4.725;
+			break;
+
+		case 8: vol = 4.059;
+			break;
+
+		case 9: vol = 3.299;
+			break;
+
+		default: vol = -1; printf("numofDOFs more than 9 not allowed \n");
+			break;
+	}
+
+	return vol;
 }

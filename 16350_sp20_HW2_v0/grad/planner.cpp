@@ -18,7 +18,7 @@
 #include <limits>
 #include <bits/stdc++.h> 
 #include <iostream>
-
+#include<cmath>
 #include "utilheader.h"
 
 /* Input Arguments */
@@ -820,11 +820,13 @@ static void plannerRRT_star(
   //  parameters
   double eps = sqrt(numofDOFs)*5.0*PI/180.0;
   double tol = 2.0*PI/180;
-  double goalProb = 0.2;
-  // bool backwards = 1;
+  double goalProb = 0.0;
+  int N_star = 1000;
+  bool backwards = 0;
+  double gamma = 1;
 
   // initialize
-  bool goalRegion = false;
+  // bool goalRegion = false;
   srand(time(nullptr));
   double angleUB = 2.0*3.14, angleLB = 0.0;
   int goalSampling;
@@ -832,6 +834,8 @@ static void plannerRRT_star(
   // store start and end vectors
   std::vector<double> startCoordActual(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoordActual(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
+
+  std::vector<NodeRRT_star*> goalNodes;
 
   std::vector<double> startCoord, endCoord;
 
@@ -856,14 +860,13 @@ static void plannerRRT_star(
     root->setParent(nullptr);
     root->setCoord( startCoord );
 
-    NodeRRT_star* tail = new NodeRRT_star;
-    tail->setParent(nullptr);
+    // NodeRRT_star* tail = new NodeRRT_star;
+    // tail->setParent(nullptr);
 
-    int ct1=0;
+    int ct=1;
     // begin while loop
-    while( !goalRegion && ct1<10000000 ){
+    while( ct < N_star || goalNodes.empty() ){
 
-      ct1++;
       // mexPrintf("entered main while loop \n");
       // mexEvalString("drawnow");
       std::vector<double> currSamplePt;
@@ -886,7 +889,6 @@ static void plannerRRT_star(
           // mexPrintf("random point is %f \n", temp);
           // mexEvalString("drawnow");
         }
-        // goalSampling=1;
       }
       else{
 
@@ -897,19 +899,84 @@ static void plannerRRT_star(
           // mexPrintf("goal point is %f \n", temp);
           // mexEvalString("drawnow");
         }
-        // goalSampling=0;
       }
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-        extend_star( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
+        int modV = ct;
+
+        double nearDist = std::min( eps, pow( (gamma * log(modV)/(volSphereFn(numofDOFs)*modV) ), 
+                        1.0/numofDOFs) );
+        printf("nearDist is %lf \n epsilon is %lf \n", nearDist, eps);
+
+        int extendKey = extend_star( root, goalNodes, currSamplePt, eps, map, x_size, y_size,
+                        endCoord , tol, nearDist);
         // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
         // mexPrintf("extend returns %d \n", marker);
         // mexEvalString("drawnow");
 
-        if(marker==3)
-          goalRegion=true;
+        if(extendKey!=2)
+          ct++;
       }
+    }
+
+    std::stack< std::vector<double> > finPath;
+    if ( goalNodes.front()->getParent()!=nullptr ){
+
+      finPath.push(goalNodes.front()->getCoords());
+      NodeRRT_star* traverse = goalNodes.front();
+
+      while(traverse->getParent()!=nullptr){
+
+        traverse = traverse->getParent();
+        finPath.push( traverse->getCoords() );
+      }
+    }
+
+    // mexPrintf("traverse while loop done \n");
+    // mexEvalString("drawnow");
+    // finPath.pop();
+    int sizePath =finPath.size();
+    *planlength = sizePath;
+
+    // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
+    // mexEvalString("drawnow");
+
+    *plan = (double**) malloc(sizePath *sizeof(double*));
+    int firstinvalidconf = 1;
+
+    for(int i=0; i < sizePath; i++ ){
+
+      if(finPath.empty()){
+
+        // printf("broke \n");
+        // mexEvalString("drawnow");
+        break;
+      }
+
+      (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+      for(int j=0; j< numofDOFs; j++){
+
+        (*plan)[i][j] = finPath.top()[j];
+        // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+      }
+
+      if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+      {
+          firstinvalidconf = 1;
+          printf("ERROR: Invalid arm configuration!!!\n");
+      }
+
+      finPath.pop();
+    }
+
+  }
+  else{
+
+    mexPrintf("either goal or start configs are invalid \n");
+    mexEvalString("drawnow");
+  }
 
   return;
 }

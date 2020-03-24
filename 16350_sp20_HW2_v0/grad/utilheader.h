@@ -191,30 +191,74 @@ class NodeRRT_star{
 private:
   std::vector <double> elemCoords;
   NodeRRT_star* parent;
-  std::vector<NodeRRT*> children;
+  std::vector<NodeRRT_star*> children;
   double G_val;
 
 public:
-  NodeRRT(); 
+  NodeRRT_star(); 
 
   std::vector <double> getCoords() const;
 
-  NodeRRT* getParent() const;
+  NodeRRT_star* getParent() const;
 
-  std::vector<NodeRRT*> getChildren() const;
+  std::vector<NodeRRT_star*> getChildren() const;
 
-  double getG() const;
+  // double getG() const;
 
-  void addChild( NodeRRT*  child_);
+  void addChild( NodeRRT_star*  child_);
 
-  void setParent( NodeRRT* parent_ );
+  void setParent( NodeRRT_star* parent_ );
 
   void setCoord(std::vector <double> coordsIn);
 
-  void setG(double G_val_);
-}
+  void popChild( NodeRRT_star* popNode );
 
-void extend_star(  );
+  // void setG(double G_val_);
+};
 
+class NodePQ_star{
+  
+public:
+  NodeRRT_star* nodeIn;
+  std::vector<double> currSamplePt;
+
+  NodePQ_star();
+
+  NodePQ_star(NodeRRT_star* nodeIn_, std::vector<double> currSamplePt_);
+
+  double getDist() const;
+};
+
+struct CompareNN_star{
+    bool operator()(NodePQ_star const &n1 , NodePQ_star const &n2) {
+        // return "true" if "p1" is ordered before "p2", for example:
+        // long eps = 1;
+        return n1.getDist() > n2.getDist();
+    }
+};
+
+NodeRRT_star* nearestNeighbour_star( std::vector<double> currSamplePt_, NodeRRT_star* root_ );
+
+void treeDFS_star( NodeRRT_star* nodeIn, std::vector<double> currSamplePt_, 
+  std::priority_queue< NodePQ_star, std::vector<NodePQ_star>, CompareNN_star > &min_queue );
+
+int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, NodeRRT_star* newNode_ , 
+  double eps_, double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol );
+
+bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, int x_size, int y_size);
+
+void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_, 
+  double nearDist_ );
+
+void nearFn( NodeRRT_star* root_, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_,
+ double nearDist_ );
+
+int extend_star( NodeRRT_star* root_, std::vector<NodeRRT_star*> &goalNodes_, 
+  std::vector<double> currSamplePt_, double eps_, double* map, int x_size, int y_size, 
+  std::vector<double> endCoord_, double tol_, double nearDist_);
+
+double costOfNode( NodeRRT_star* nodeIn );
+
+double volSphereFn(int numofDOFs);
 
 #endif
