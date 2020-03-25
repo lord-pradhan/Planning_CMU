@@ -8,6 +8,7 @@
 #include <vector>
 #include <limits>
 #include <queue>
+#include <list>
 
 #define PI 3.141592654
 
@@ -192,7 +193,7 @@ private:
   std::vector <double> elemCoords;
   NodeRRT_star* parent;
   std::vector<NodeRRT_star*> children;
-  double G_val;
+  // double G_val;
 
 public:
   NodeRRT_star(); 
@@ -233,14 +234,14 @@ struct CompareNN_star{
     bool operator()(NodePQ_star const &n1 , NodePQ_star const &n2) {
         // return "true" if "p1" is ordered before "p2", for example:
         // long eps = 1;
-        return n1.getDist() > n2.getDist();
+        return n1.getDist() < n2.getDist();
     }
 };
 
 NodeRRT_star* nearestNeighbour_star( std::vector<double> currSamplePt_, NodeRRT_star* root_ );
 
 void treeDFS_star( NodeRRT_star* nodeIn, std::vector<double> currSamplePt_, 
-  std::priority_queue< NodePQ_star, std::vector<NodePQ_star>, CompareNN_star > &min_queue );
+  std::list< NodePQ_star > &min_list_ );
 
 int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, NodeRRT_star* newNode_ , 
   double eps_, double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol );

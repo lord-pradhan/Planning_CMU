@@ -295,9 +295,19 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   // mexEvalString("drawnow");
 
   // parameters
-  int N_samples = 7000;
+  int N_samples;
+
+  if(numofDOFs<=4)
+    N_samples= pow(5, numofDOFs);
+  
+  else if(numofDOFs ==5)
+    N_samples = pow(4, numofDOFs);
+
+  else
+    N_samples = 2000;
+
   double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = sqrt(numofDOFs)*35.0*PI/180.0;
+  double nbd = sqrt(numofDOFs)*40.0*PI/180.0;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -391,6 +401,13 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     }
 
     start_list.sort( list_comp() );
+
+    auto it0 = start_list.begin();
+    mexPrintf("start_list sorted is %lf, %lf, %lf \n", distanceFn((*it0).mapNode, (*it0).testNode),
+      distanceFn((*std::next(it0,1)).mapNode, (*std::next(it0,1)).testNode), 
+      distanceFn((*std::next(it0,2)).mapNode, (*std::next(it0,2)).testNode)  );
+    mexEvalString("drawnow");
+
     end_list.sort( list_comp() );
 
     listOfNodes.push_back(startNode);
@@ -818,12 +835,12 @@ static void plannerRRT_star(
 	*planlength = 0;
    
   //  parameters
-  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
   double tol = 2.0*PI/180;
-  double goalProb = 0.0;
+  double goalProb = 0.02;
   int N_star = 1000;
   bool backwards = 0;
-  double gamma = 1;
+  double gamma = 10;
 
   // initialize
   // bool goalRegion = false;
@@ -907,69 +924,143 @@ static void plannerRRT_star(
 
         double nearDist = std::min( eps, pow( (gamma * log(modV)/(volSphereFn(numofDOFs)*modV) ), 
                         1.0/numofDOFs) );
-        printf("nearDist is %lf \n epsilon is %lf \n", nearDist, eps);
+        // printf("nearDist is %lf \n epsilon is %lf \n", nearDist, eps);
 
         int extendKey = extend_star( root, goalNodes, currSamplePt, eps, map, x_size, y_size,
                         endCoord , tol, nearDist);
         // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
-        // mexPrintf("extend returns %d \n", marker);
-        // mexEvalString("drawnow");
+        // printf("extend returns %d \n", extendKey);
 
-        if(extendKey!=2)
+        if(extendKey!=2){
+
+          // printf("trapped\n");
           ct++;
+        }
       }
     }
 
-    std::stack< std::vector<double> > finPath;
-    if ( goalNodes.front()->getParent()!=nullptr ){
+    printf("start backtracking\n");
 
-      finPath.push(goalNodes.front()->getCoords());
-      NodeRRT_star* traverse = goalNodes.front();
+    if(!backwards){
 
-      while(traverse->getParent()!=nullptr){
+      std::stack< std::vector<double> > finPath;
+      if ( goalNodes[0]->getParent()!=nullptr ){
 
-        traverse = traverse->getParent();
-        finPath.push( traverse->getCoords() );
+        finPath.push(goalNodes[0]->getCoords());
+        NodeRRT_star* traverse = goalNodes[0];
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push( traverse->getCoords() );
+        }
+      }
+
+      // mexPrintf("traverse while loop done \n");
+      // mexEvalString("drawnow");
+      // finPath.pop();
+      int sizePath =finPath.size();
+      *planlength = sizePath;
+
+      // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
+      // mexEvalString("drawnow");
+
+      *plan = (double**) malloc(sizePath *sizeof(double*));
+      int firstinvalidconf = 1;
+
+      for(int i=0; i < sizePath; i++ ){
+
+        if(finPath.empty()){
+
+          // printf("broke \n");
+          // mexEvalString("drawnow");
+          break;
+        }
+
+        (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+        for(int j=0; j< numofDOFs; j++){
+
+          (*plan)[i][j] = finPath.top()[j];
+          // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+        }
+
+        if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+        {
+            firstinvalidconf = 1;
+            printf("ERROR: Invalid arm configuration!!!\n");
+        }
+
+        finPath.pop();
+      }
+    }
+    else{
+
+      std::queue< std::vector<double> > finPath;
+      if ( goalNodes[0]->getParent()!=nullptr ){
+
+        finPath.push(goalNodes[0]->getCoords());
+        NodeRRT_star* traverse = goalNodes[0];
+
+        while(traverse->getParent()!=nullptr){
+
+          traverse = traverse->getParent();
+          finPath.push( traverse->getCoords() );
+        }
+      }
+
+      // mexPrintf("traverse while loop done \n");
+      // mexEvalString("drawnow");
+      // finPath.pop();
+      int sizePath =finPath.size();
+      *planlength = sizePath;
+
+      // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
+      // mexEvalString("drawnow");
+
+      *plan = (double**) malloc(sizePath *sizeof(double*));
+      int firstinvalidconf = 1;
+
+      for(int i=0; i < sizePath; i++ ){
+
+        if(finPath.empty()){
+
+          // printf("broke \n");
+          // mexEvalString("drawnow");
+          break;
+        }
+
+        (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
+
+        for(int j=0; j< numofDOFs; j++){
+
+          (*plan)[i][j] = finPath.front()[j];
+          // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
+        }
+
+        if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
+        {
+            firstinvalidconf = 1;
+            printf("ERROR: Invalid arm configuration!!!\n");
+        }
+
+        finPath.pop();
       }
     }
 
-    // mexPrintf("traverse while loop done \n");
-    // mexEvalString("drawnow");
-    // finPath.pop();
-    int sizePath =finPath.size();
-    *planlength = sizePath;
+    // deallocate pointers
+    if(root!=nullptr)
+      delete root;
 
-    // printf("finPath size is %d \n size of vector is %d \n", sizePath, finPath.top().size());
-    // mexEvalString("drawnow");
+    // for(auto i : goalNodes){
 
-    *plan = (double**) malloc(sizePath *sizeof(double*));
-    int firstinvalidconf = 1;
-
-    for(int i=0; i < sizePath; i++ ){
-
-      if(finPath.empty()){
-
-        // printf("broke \n");
-        // mexEvalString("drawnow");
-        break;
-      }
-
-      (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
-
-      for(int j=0; j< numofDOFs; j++){
-
-        (*plan)[i][j] = finPath.top()[j];
-        // printf( "print finPath for i: %d, j: %d = %lf \n", i, j, finPath.top()[j]);
-      }
-
-      if( IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size)==0 && firstinvalidconf)
-      {
-          firstinvalidconf = 1;
-          printf("ERROR: Invalid arm configuration!!!\n");
-      }
-
-      finPath.pop();
-    }
+    //   if(i!=nullptr)
+    //     delete i;
+    // }
+    // goalNodes.clear();
+    
+    // if(tail!=nullptr)
+    //   delete tail;
 
   }
   else{
@@ -980,8 +1071,6 @@ static void plannerRRT_star(
 
   return;
 }
-
-
 
 
 
