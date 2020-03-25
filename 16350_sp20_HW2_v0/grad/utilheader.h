@@ -154,14 +154,13 @@ struct CompareNN{
     bool operator()(NodePQ const &n1 , NodePQ const &n2) {
         // return "true" if "p1" is ordered before "p2", for example:
         // long eps = 1;
-        return n1.getDist() > n2.getDist();
+        return n1.getDist() < n2.getDist();
     }
 };
 
 NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ );
 
-void treeDFS(  NodeRRT* nodeIn, std::vector<double> currSamplePt_, 
-  std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > &min_queue );
+void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, std::list< NodePQ > &min_list_);
 
 int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , double eps_, double* map, 
   int x_size, int y_size, std::vector<double> endCoord_, double tol );

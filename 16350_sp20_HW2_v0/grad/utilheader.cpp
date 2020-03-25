@@ -316,30 +316,35 @@ int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , 
 
 NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ ){
 
-	std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > min_queue;
+	std::list< NodePQ > min_list;
 
 	NodePQ nodeTemp( root_, currSamplePt_ );
-	min_queue.push( nodeTemp );
+	min_list.push_back( nodeTemp );
 
-	treeDFS( root_, currSamplePt_ , min_queue);
+	treeDFS( root_, currSamplePt_ , min_list);
 
-	// mexPrintf("size of min_queue is %d \n", min_queue.size());
-	// mexEvalString("drawnow");
+	min_list.sort(CompareNN() );
 
-	return min_queue.top().nodeIn;
+	// if(min_list.size()>=3){
+	// 	auto it0 = min_list.begin();
+	// 	mexPrintf(" min_list sorted is %lf %lf %lf \n", (*it0).getDist(), (*std::next(it0,1)).getDist(), 
+	// 		(*std::next(it0,2)).getDist() );
+	// 	mexEvalString("drawnow");
+	// }
+
+	return min_list.front().nodeIn;
 }
 
 
-void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, 
-	std::priority_queue< NodePQ, std::vector<NodePQ>, CompareNN > &min_queue ){
+void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, std::list< NodePQ > &min_list_ ){
 
 	if ( !nodeIn->getChildren().empty() ){
 
 		for (auto i : nodeIn->getChildren()){
 
 			NodePQ nodeTemp( i, currSamplePt_ );
-			min_queue.push( nodeTemp );
-			treeDFS(  i, currSamplePt_, min_queue );
+			min_list_.push_back( nodeTemp );
+			treeDFS(  i, currSamplePt_, min_list_ );
 		}
 		return;
 	}

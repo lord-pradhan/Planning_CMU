@@ -838,9 +838,9 @@ static void plannerRRT_star(
   double eps = sqrt(numofDOFs)*10.0*PI/180.0;
   double tol = 2.0*PI/180;
   double goalProb = 0.02;
-  int N_star = 1000;
+  int N_star = 500;
   bool backwards = 0;
-  double gamma = 10;
+  double gamma = 100;
 
   // initialize
   // bool goalRegion = false;
