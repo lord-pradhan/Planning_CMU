@@ -290,24 +290,25 @@ struct list_comp {
 static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_anglesV_rad,
        double* armgoal_anglesV_rad, int numofDOFs, double*** plan,  int* planlength)
 {
-  auto start = high_resolution_clock::now();
   //no plan by default
   *plan = NULL;
   *planlength = 0;
 
   // parameters
-  int N_samples;
-  double nbd = sqrt(numofDOFs)*50.0*PI/180.0;
+  int N_samples;//=2000;
+  double nbd = sqrt(numofDOFs)*20.0*PI/180.0;
+  double nbd_query = sqrt(numofDOFs)*90.0*PI/180.0;
   int numChecks = 100*nbd;
+  int numChecksQuery = 100*nbd_query;
 
   if(numofDOFs<=4)
-    N_samples= pow(5, numofDOFs);
+    N_samples= pow(6, numofDOFs);
   
   else if(numofDOFs ==5)
     N_samples = pow(4, numofDOFs);
 
   else
-    N_samples = 2000;
+    N_samples = 3000;
 
   //initialize
   int ct=0, elemCt = 0;
@@ -321,7 +322,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
       && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-
+    auto start0 = high_resolution_clock::now();
     int ct1=0;
     while( elemCt < N_samples ){
 
@@ -372,7 +373,10 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       ct1++;
     }
 
+    auto stop0 = high_resolution_clock::now();
+
     /////// Query phase /////
+    auto start1 = high_resolution_clock::now();
     // post-processing done, now find nearest neighbours for start and goal ////////
     // std::stack<NodePRM> start_stack, end_stack;
     NodePRM startNode, endNode;
@@ -395,11 +399,11 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       // listStruct endStruct( i_node, endNode );
       if(distanceFn(startNode, i_node) < nbd_query ){
 
-        start_list.push_back( startStruct );
+        start_list.push_back( i_node );
       }
   
       if(distanceFn(endNode, i_node) < nbd_query){
-        end_list.push_back( endStruct );
+        end_list.push_back( i_node );
       }
     }
 
@@ -417,33 +421,25 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     listOfNodes.push_back(endNode);
 
     int ctStart = 0;
-    while(!start_list.empty()){
+    for(auto i : start_list){
 
-      if( can_connect( startNode, start_list.front().mapNode, map, x_size, y_size, numChecks ) ){
+      if( can_connect( startNode, i, map, x_size, y_size, numChecksQuery ) ){
 
-        listOfNodes[N_samples].insertAdj( start_list.front().mapNode.getID() );
-        listOfNodes[start_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples].getID() );        
-        ctStart++;
-        break;
+        listOfNodes[N_samples].insertAdj( i.getID() );
+        listOfNodes[i.getID()].insertAdj( listOfNodes[N_samples].getID() ); 
       }
-      else
-        start_list.pop_front();
 
       ctStart++;
     }
 
     int ctEnd =0;
-    while(!end_list.empty()){
+    for(auto i:end_list){
 
-      if( can_connect( endNode, end_list.front().mapNode, map, x_size, y_size, numChecks ) ){
+      if( can_connect( endNode, i, map, x_size, y_size, numChecksQuery ) ){
 
-        listOfNodes[N_samples+1].insertAdj( end_list.front().mapNode.getID() );
-        listOfNodes[end_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples+1].getID() ); 
-        ctEnd++;
-        break;      
+        listOfNodes[N_samples+1].insertAdj( i.getID() );
+        listOfNodes[i.getID()].insertAdj( listOfNodes[N_samples+1].getID() ); 
       }
-      else
-        end_list.pop_front();
 
       ctEnd++;
     }
@@ -469,10 +465,10 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       // printf("listOfNodes[tempID].getG() is %lf \n tempID is %d \n ", listOfNodes[tempID].getG(), tempID);
 
-      if(listOfNodes[tempID].getAdjIDs().empty()){
-        printf("someone doesnt have any connections :( \n");
-        break;
-      }
+      // if(listOfNodes[tempID].getAdjIDs().empty()){
+      //   printf("someone doesnt have any connections :( \n");
+      //   break;
+      // }
 
       for(auto succesor : listOfNodes[tempID].getAdjIDs() ){
 
@@ -497,8 +493,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       } else if(open_set.empty()){
 
-        printf("open set is empty\n");
-        printf("path can't be found\n");
+        printf("Failure. Open set is empty\n");
+        printf("Path can't be found\n");
         return;
       }
 
@@ -554,10 +550,26 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       optPath.pop();
     }
+
+    auto stop1 = high_resolution_clock::now();
+    auto total = duration_cast<microseconds>(stop1 - start0);
+    auto query = duration_cast<microseconds>(stop1 - start1);
+    auto roadmap = duration_cast<microseconds>(stop0 - start0);
+
+    // print stuff for postprocessing
+    double pathcost = costPath(plan, planlength, numofDOFs, x_size);
+
+    mexPrintf("\n****** PRM algorithm results ******* \n\n");
+    mexPrintf("Path cost is %lf \n", pathcost);
+    mexPrintf("Number of nodes in graph are %d \n", listOfNodes.size());
+    mexPrintf("Total time duration for PRM is %d \n", total.count());
+    mexPrintf("Roadmap time taken is %d \n", roadmap.count());
+    mexPrintf("Query time taken is %d \n", query.count());
+    mexEvalString("drawnow");
   }
   else{
 
-    mexPrintf("either goal or start configs are invalid \n");
+    mexPrintf("Failed. Either goal or start configs are invalid \n");
     mexEvalString("drawnow");
   }
 
@@ -575,9 +587,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 //       }
 //   }    
 //   *planlength = numofsamples;
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<milliseconds>(stop - start);
-  mexPrintf("Duration for PRM is %d \n", duration.count());
+
   return;
 }
 
@@ -597,8 +607,6 @@ static void plannerRRT(
 	   double*** plan,
 	   int* planlength)
 {
-  auto start = high_resolution_clock::now();
-
   //no plan by default
   *plan = NULL;
   *planlength = 0;
@@ -615,6 +623,7 @@ static void plannerRRT(
   srand(time(nullptr));
   double angleUB = 2.0*3.14, angleLB = 0.0;
   int goalSampling;
+  int treeCt=0;
 
   // store start and end vectors
   std::vector<double> startCoordActual(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
@@ -636,9 +645,9 @@ static void plannerRRT(
   if(IsValidArmConfiguration( startCoordActual.data(), numofDOFs, map, x_size, y_size )==1 
     && IsValidArmConfiguration( endCoordActual.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-    // initialize tree with start / end
-    // mexPrintf("before initializing trees \n");
-    // mexEvalString("drawnow");
+
+    auto start = high_resolution_clock::now();
+
     NodeRRT* root = new NodeRRT;
     root->setParent(nullptr);
     root->setCoord( startCoord );
@@ -646,16 +655,11 @@ static void plannerRRT(
     NodeRRT* tail = new NodeRRT;
     tail->setParent(nullptr);
 
-    int ct1=0;
     // begin while loop
     while( !goalRegion ){
 
-      ct1++;
-      // mexPrintf("entered main while loop \n");
-      // mexEvalString("drawnow");
       std::vector<double> currSamplePt;
 
-      // srand(time(nullptr));
       double probTemp = randomDouble(0.0, 1.0);
 
       if (probTemp < goalProb)
@@ -670,21 +674,16 @@ static void plannerRRT(
 
           double temp = randomDouble(angleLB, angleUB);
           currSamplePt.push_back( temp );
-          // mexPrintf("random point is %f \n", temp);
-          // mexEvalString("drawnow");
         }
-        // goalSampling=1;
       }
+
       else{
 
         for (int i = 0; i<numofDOFs; i++){
 
           double temp = randomDouble(endCoord[i] - tol, endCoord[i]+tol);
           currSamplePt.push_back( temp );
-          // mexPrintf("goal point is %f \n", temp);
-          // mexEvalString("drawnow");
         }
-        // goalSampling=0;
       }
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
@@ -695,12 +694,12 @@ static void plannerRRT(
         // mexPrintf("extend returns %d \n", marker);
         // mexEvalString("drawnow");
 
+        if(marker!=2)
+          treeCt++;
+
         if(marker==3)
           goalRegion=true;
       }
-
-      // mexPrintf("extend returns %d \n", marker);
-      // mexEvalString("drawnow");
     }
 
     // tree traversal from tail to root
@@ -720,9 +719,6 @@ static void plannerRRT(
         }
       }
 
-      // mexPrintf("traverse while loop done \n");
-      // mexEvalString("drawnow");
-      // finPath.pop();
       int sizePath =finPath.size();
       *planlength = sizePath;
 
@@ -736,8 +732,6 @@ static void plannerRRT(
 
         if(finPath.empty()){
 
-          // printf("broke \n");
-          // mexEvalString("drawnow");
           break;
         }
 
@@ -812,17 +806,26 @@ static void plannerRRT(
     
     if(tail!=nullptr)
       delete tail;
+
+    // print stuff for postprocessing
+    double pathcost = costPath(plan, planlength, numofDOFs, x_size);
+
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
+
+    mexPrintf("\n****** RRT algorithm results ******* \n\n");
+    mexPrintf("Path cost is %lf \n", pathcost);
+    mexPrintf("Number of nodes in graph are %d \n", treeCt);
+    mexPrintf("Total time duration is %d \n", duration.count());
+    mexEvalString("drawnow");
   }
 
   else{
 
-    mexPrintf("either goal or start configs are invalid \n");
+    mexPrintf("Failed. Either goal or start configs are invalid \n");
     mexEvalString("drawnow");
   }
 
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<milliseconds>(stop - start);
-  mexPrintf("Duration for RRT is %d \n", duration.count());
   return;
 }
 
@@ -843,16 +846,14 @@ static void plannerRRT_star(
 	   int* planlength)
 {
 	//no plan by default
-  auto start0 = high_resolution_clock::now();
-
 	*plan = NULL;
 	*planlength = 0;
    
   //  parameters
   double eps = sqrt(numofDOFs)*5.0*PI/180.0;
-  double tol = 4.0*PI/180;
+  double tol = 2.0*PI/180;
   double goalProb = 0.2;
-  int N_star = 10;
+  int N_star = 200;
   bool backwards = 1;
   double gamma = 0.1;
   int numChecks = std::floor(100*eps);
@@ -862,6 +863,7 @@ static void plannerRRT_star(
   srand(time(nullptr));
   double angleUB = 2.0*3.14, angleLB = 0.0;
   auto start1 = high_resolution_clock::now();  
+  int ct=0;
   // int goalSampling;
 
   // store start and end vectors
@@ -886,12 +888,13 @@ static void plannerRRT_star(
   if(IsValidArmConfiguration( startCoordActual.data(), numofDOFs, map, x_size, y_size )==1 
     && IsValidArmConfiguration( endCoordActual.data(), numofDOFs, map, x_size, y_size )==1 ){
 
+    auto start0 = high_resolution_clock::now();
+
     // initialize tree
     NodeRRT_star* root = new NodeRRT_star;
     root->setParent(nullptr);
     root->setCoord( startCoord );
 
-    int ct=1;
     // begin while loop
     while( ct < N_star || goalNodes.empty() ){
 
@@ -929,18 +932,15 @@ static void plannerRRT_star(
         // printf("extend returns %d \n", extendKey);
 
         if(extendKey!=2)
-          ct++; printf("ct is %d\n", ct);
+          ct++; 
+        //printf("ct is %d\n", ct);
 
-        // if(goalNodes.empty()){
+        if(goalNodes.empty()){
 
-        //   start1 = high_resolution_clock::now();  
-        // }
+          start1 = high_resolution_clock::now();  
+        }
       }
     }
-
-    // auto stop1 = high_resolution_clock::now();
-    // auto duration1 = duration_cast<milliseconds>(stop1 - start);
-    // mexPrintf("before backtracking %d \n ct is %d \n", duration1.count(), ct);
 
     // printf("start backtracking\n");
     if(!backwards){
@@ -958,9 +958,7 @@ static void plannerRRT_star(
         }
       }
 
-      // mexPrintf("traverse while loop done \n");
-      // mexEvalString("drawnow");
-      // finPath.pop();
+
       int sizePath =finPath.size();
       *planlength = sizePath;
 
@@ -1054,28 +1052,28 @@ static void plannerRRT_star(
     if(root!=nullptr)
       delete root;
 
-    // for(auto i : goalNodes){
+    // print stuff for postprocessing
+    double pathcost = costPath(plan, planlength, numofDOFs, x_size);
 
-    //   if(i!=nullptr)
-    //     delete i;
-    // }
-    // goalNodes.clear();
-    
-    // if(tail!=nullptr)
-    //   delete tail;
+    auto stop = high_resolution_clock::now();
+    auto total = duration_cast<microseconds>(stop - start0);
+    auto improve = duration_cast<microseconds>(stop - start1);
+
+    mexPrintf("\n****** RRT_star algorithm results ******* \n\n");
+    mexPrintf("Path cost is %lf \n", pathcost);
+    mexPrintf("Total duration for RRT* is %d \n", total.count());
+    mexPrintf("Time spent improving solution is %d \n", improve.count());
+    mexPrintf("Number of nodes in tree are %d \n", ct);
+    // mexPrintf("Total time duration is %d \n", duration.count());
+    mexEvalString("drawnow");
 
   }
   else{
 
-    mexPrintf("either goal or start configs are invalid \n");
+    mexPrintf("Failed. Either goal or start configs are invalid \n");
     mexEvalString("drawnow");
   }
 
-  auto stop = high_resolution_clock::now();
-  auto duration1 = duration_cast<milliseconds>(stop - start0);
-  auto duration2 = duration_cast<milliseconds>(stop - start1);
-  mexPrintf("Total duration for RRT* is %d \n", duration1.count());
-  mexPrintf("Time spent improving solution is %d \n", duration1.count());
   return;
 }
 
@@ -1095,20 +1093,18 @@ static void plannerRRT_connect(
 	   double*** plan,
 	   int* planlength)
 {
-	
-  auto start = high_resolution_clock::now();
-
-  //no plan by default
+	//no plan by default
 	*plan = NULL;
 	*planlength = 0;
 
   //parameters
-  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  double eps = sqrt(numofDOFs)*3.0*PI/180.0;
   int numChecks = std::floor(100*eps);
 
   // initialize
   bool treeConnected = false;
   double angleUB = 2.0*3.14, angleLB = 0.0;
+  int treeCt=0;
 
   // store start and end vectors
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
@@ -1117,6 +1113,7 @@ static void plannerRRT_connect(
   if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
     && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
     
+    auto start = high_resolution_clock::now();
     // initialize both trees
     NodeRRT* tree1 = new NodeRRT;
     tree1->setParent(nullptr);
@@ -1152,8 +1149,13 @@ static void plannerRRT_connect(
 
           // newNode2 = nullptr;
           // printf("extend star if condition entered\n");
+          treeCt++;
+          int connectKey = connect(tree2, newNode1, tail2, eps, map, x_size, y_size, numChecks);
 
-          if (connect(tree2, newNode1, tail2, eps, map, x_size, y_size, numChecks)==0 ){
+          if(connectKey!=2)
+            treeCt++;
+
+          if (connectKey==0){
 
             treeConnected=true;
             // tail1->setCoord(newNode1->getCoords());
@@ -1184,7 +1186,7 @@ static void plannerRRT_connect(
 
     if(forward){ // if forwards expansion
 
-      printf("direction is forward  \n");
+      // printf("direction is forward  \n");
       if( tail1->getParent()!=nullptr ){
 
         finPath.push_front(tail1->getCoords());
@@ -1214,7 +1216,7 @@ static void plannerRRT_connect(
     }
     else{
 
-      printf("direction is backwards\n");
+      // printf("direction is backwards\n");
       if( tail2->getParent()!=nullptr ){
 
         finPath.push_front(tail2->getCoords());
@@ -1292,12 +1294,17 @@ static void plannerRRT_connect(
     if(tail2!=nullptr)
       delete tail2;
 
-    // if(newNode1!=nullptr)
-    //   delete newNode1;
+    // print stuff for postprocessing
+    double pathcost = costPath(plan, planlength, numofDOFs, x_size);
 
-    // if(newNode2!=nullptr)
-    //   delete newNode2;
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
 
+    mexPrintf("\n****** RRT_connect algorithm results ******* \n\n");
+    mexPrintf("Path cost is %lf \n", pathcost);
+    mexPrintf("Number of nodes in graph are %d \n", treeCt);
+    mexPrintf("Total time duration is %d \n", duration.count());
+    mexEvalString("drawnow");
   }
 
   else{
@@ -1306,9 +1313,7 @@ static void plannerRRT_connect(
     mexEvalString("drawnow");
   }
 
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<milliseconds>(stop - start);
-  mexPrintf("Duration for RRT connect is %d \n", duration.count());
+
   return;
 }
 

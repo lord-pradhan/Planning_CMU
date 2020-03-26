@@ -264,4 +264,8 @@ double costOfNode( NodeRRT_star* nodeIn );
 
 double volSphereFn(int numofDOFs);
 
+
+// post-processing
+double costPath(double*** angles, int* planlength, int numofDOFs, int x_size);
+
 #endif

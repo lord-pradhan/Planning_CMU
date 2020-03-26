@@ -21,6 +21,12 @@
 using namespace std::chrono;
 
 
+#define PI 3.141592654
+
+//the length of each link in the arm (should be the same as the one used in runtest.m)
+#define LINKLENGTH_CELLS 10
+
+
 NodePRM::NodePRM(): expanded(false), G_val( std::numeric_limits<double>::infinity() ){}
 
 double NodePRM::getNthCoord( int n ) const{
@@ -533,6 +539,7 @@ int connect( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ ,
 	} while(extKey==1);
 	// else
 	// 	return 1;
+	return extKey;
 }
 
 void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ ){
@@ -802,7 +809,7 @@ int extend_star( NodeRRT_star* root_, std::vector<NodeRRT_star*> &goalNodes_,
 
 	if(steerKey==2){
 		// delete newNode;
-		printf("trapped\n");
+		// printf("trapped\n");
 		return steerKey;
 	}
 
@@ -854,8 +861,8 @@ int extend_star( NodeRRT_star* root_, std::vector<NodeRRT_star*> &goalNodes_,
 				newNode->setParent(tempParent);
 				tempParent->addChild(newNode);
 				tempParent->popChild(nearNodes[i]);	
-				mexPrintf("rewiring edges done\n");
-				mexEvalString("drawnow");
+				// mexPrintf("rewiring edges done\n");
+				// mexEvalString("drawnow");
 			}
 		}
 	}
@@ -930,4 +937,48 @@ double volSphereFn(int numofDOFs){
 	}
 
 	return vol;
+}
+
+
+//post processing
+double costPath(double*** angles, int* planlength, int numofDOFs, int x_size){
+  // (*plan)[i][j] 
+  double x0,y0,x1,y1;
+
+  struct EEPos
+  {
+    double x, y;
+
+    EEPos(double x_, double y_): x(x_), y(y_){}
+  };
+
+  std::vector<EEPos> EEpositions;
+
+  for(int j=0; j<*planlength; j++){
+
+	x1 = ((double)x_size)/2.0;
+	y1 = 0;
+
+    for(int i = 0; i < numofDOFs; i++)
+    {
+      //compute the corresponding line segment
+      x0 = x1;
+      y0 = y1;
+      x1 = x0 + LINKLENGTH_CELLS*cos( 2*PI-(*angles)[j][i] );
+      y1 = y0 - LINKLENGTH_CELLS*sin( 2*PI-(*angles)[j][i] );
+    }
+
+    EEPos temp(x1, y1);
+    EEpositions.push_back( temp );
+  }
+
+  double cost=0;
+
+  for(int i=0; i< (*planlength)-1; i++ ){
+
+    cost+= sqrt( pow( (EEpositions[i+1].x - EEpositions[i].x),2 ) + 
+                pow( (EEpositions[i+1].y - EEpositions[i].y),2 ) );
+  }
+
+  return cost;
 }

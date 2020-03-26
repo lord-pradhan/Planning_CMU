@@ -1,0 +1,31 @@
+%% this script executes post-processing for Hw2
+%Author - Roshan Pradhan
+clear all
+close all
+clc
+
+mex planner.cpp utilheader.cpp
+%% initialize
+rng('shuffle');
+
+for i=1:20
+    numDof = 1 + randi(6);
+    armstart = 2*pi*rand(1, numDof);
+    armgoal = 2*pi*rand(1, numDof);
+    
+    disp(['Start config is ', num2armstart])
+    disp(['Goal config is ', armgoal])
+    planner_id = 0;
+    runtest('map2.txt', armstart, armgoal, planner_id);
+    disp(['Run number ', num2str(i)])
+%     disp(i)
+end
+
+% planner_id = 1;
+% runtest('map2.txt', startQ, goalQ, planner_id);
+% 
+% planner_id = 2;
+% runtest('map2.txt', startQ, goalQ, planner_id);
+% 
+% planner_id = 3;
+% runtest('map2.txt', startQ, goalQ, planner_id);
