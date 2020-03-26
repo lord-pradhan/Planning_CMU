@@ -20,6 +20,8 @@
 #include <iostream>
 #include<cmath>
 #include "utilheader.h"
+#include <chrono> 
+using namespace std::chrono;
 
 /* Input Arguments */
 #define	MAP_IN      prhs[0]
@@ -288,14 +290,15 @@ struct list_comp {
 static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_anglesV_rad,
        double* armgoal_anglesV_rad, int numofDOFs, double*** plan,  int* planlength)
 {
+  auto start = high_resolution_clock::now();
   //no plan by default
   *plan = NULL;
   *planlength = 0;
-  // mexPrintf("Planner called \n");
-  // mexEvalString("drawnow");
 
   // parameters
   int N_samples;
+  double nbd = sqrt(numofDOFs)*50.0*PI/180.0;
+  int numChecks = 100*nbd;
 
   if(numofDOFs<=4)
     N_samples= pow(5, numofDOFs);
@@ -306,13 +309,11 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   else
     N_samples = 2000;
 
-  double angleUB = 2*3.14, angleLB = 0.0;
-  double nbd = sqrt(numofDOFs)*40.0*PI/180.0;
-
   //initialize
   int ct=0, elemCt = 0;
   std::vector <NodePRM> listOfNodes;
   srand(time(nullptr));
+  double angleUB = 2*3.14, angleLB = 0.0;
 
   std::vector<double> startCoord(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
   std::vector<double> endCoord(armgoal_anglesV_rad, armgoal_anglesV_rad + numofDOFs);
@@ -320,8 +321,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   if(IsValidArmConfiguration( startCoord.data(), numofDOFs, map, x_size, y_size )==1 
       && IsValidArmConfiguration( endCoord.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-    mexPrintf("Before first while loop \n");
-    mexEvalString("drawnow");
 
     int ct1=0;
     while( elemCt < N_samples ){
@@ -358,7 +357,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
           for (auto i1_node : neighbours){
 
             if( !same_component( pushNode, i1_node, listOfNodes ) && 
-              can_connect( pushNode, i1_node, map, x_size, y_size ) ){
+              can_connect( pushNode, i1_node, map, x_size, y_size, numChecks ) ){
 
               pushNode.insertAdj( i1_node.getID() );
               listOfNodes[i1_node.getID()].insertAdj( pushNode.getID() );
@@ -373,10 +372,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       ct1++;
     }
 
-    mexPrintf("Exited preprocessing - %d \n", ct1);
-    mexEvalString("drawnow");
-
-
     /////// Query phase /////
     // post-processing done, now find nearest neighbours for start and goal ////////
     // std::stack<NodePRM> start_stack, end_stack;
@@ -390,25 +385,33 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     endNode.setElemID(elemCt);
     elemCt++;
 
-    std::list<listStruct> start_list, end_list;
+    // std::list<listStruct> start_list, end_list;
+
+    std::vector<NodePRM> start_list, end_list;
 
     for( NodePRM i_node : listOfNodes ){
 
-      listStruct startStruct( i_node, startNode );
-      listStruct endStruct( i_node, endNode );
-      start_list.push_back( startStruct );
-      end_list.push_back( endStruct );
+      // listStruct startStruct( i_node, startNode );
+      // listStruct endStruct( i_node, endNode );
+      if(distanceFn(startNode, i_node) < nbd_query ){
+
+        start_list.push_back( startStruct );
+      }
+  
+      if(distanceFn(endNode, i_node) < nbd_query){
+        end_list.push_back( endStruct );
+      }
     }
 
-    start_list.sort( list_comp() );
+    // start_list.sort( list_comp() );
 
-    auto it0 = start_list.begin();
-    mexPrintf("start_list sorted is %lf, %lf, %lf \n", distanceFn((*it0).mapNode, (*it0).testNode),
-      distanceFn((*std::next(it0,1)).mapNode, (*std::next(it0,1)).testNode), 
-      distanceFn((*std::next(it0,2)).mapNode, (*std::next(it0,2)).testNode)  );
-    mexEvalString("drawnow");
+    // auto it0 = start_list.begin();
+    // mexPrintf("start_list sorted is %lf, %lf, %lf \n", distanceFn((*it0).mapNode, (*it0).testNode),
+    //   distanceFn((*std::next(it0,1)).mapNode, (*std::next(it0,1)).testNode), 
+    //   distanceFn((*std::next(it0,2)).mapNode, (*std::next(it0,2)).testNode)  );
+    // mexEvalString("drawnow");
 
-    end_list.sort( list_comp() );
+    // end_list.sort( list_comp() );
 
     listOfNodes.push_back(startNode);
     listOfNodes.push_back(endNode);
@@ -416,7 +419,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     int ctStart = 0;
     while(!start_list.empty()){
 
-      if( can_connect( startNode, start_list.front().mapNode, map, x_size, y_size ) ){
+      if( can_connect( startNode, start_list.front().mapNode, map, x_size, y_size, numChecks ) ){
 
         listOfNodes[N_samples].insertAdj( start_list.front().mapNode.getID() );
         listOfNodes[start_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples].getID() );        
@@ -432,7 +435,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     int ctEnd =0;
     while(!end_list.empty()){
 
-      if( can_connect( endNode, end_list.front().mapNode, map, x_size, y_size ) ){
+      if( can_connect( endNode, end_list.front().mapNode, map, x_size, y_size, numChecks ) ){
 
         listOfNodes[N_samples+1].insertAdj( end_list.front().mapNode.getID() );
         listOfNodes[end_list.front().mapNode.getID()].insertAdj( listOfNodes[N_samples+1].getID() ); 
@@ -445,8 +448,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       ctEnd++;
     }
 
-    mexPrintf("Ended while loops for finding closest points - %d and %d \n", ctStart, ctEnd);
-    mexEvalString("drawnow");
+    // mexPrintf("Ended while loops for finding closest points - %d and %d \n", ctStart, ctEnd);
+    // mexEvalString("drawnow");
 
 
     //// ****** Query done, now Dijsktraa's *********//////
@@ -464,7 +467,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       listOfNodes[tempID].expand();
       open_set.pop();
 
-      printf("listOfNodes[tempID].getG() is %lf \n tempID is %d \n ", listOfNodes[tempID].getG(), tempID);
+      // printf("listOfNodes[tempID].getG() is %lf \n tempID is %d \n ", listOfNodes[tempID].getG(), tempID);
 
       if(listOfNodes[tempID].getAdjIDs().empty()){
         printf("someone doesnt have any connections :( \n");
@@ -473,10 +476,10 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       for(auto succesor : listOfNodes[tempID].getAdjIDs() ){
 
-        printf("listOfNodes[succesor].getG() is %lf \n succesor is %d \n", 
-          listOfNodes[succesor].getG(), succesor);
-        printf("distanceFn( listOfNodes[tempID], listOfNodes[succesor] ) is %lf\n",
-         distanceFn( listOfNodes[tempID], listOfNodes[succesor] ));
+        // printf("listOfNodes[succesor].getG() is %lf \n succesor is %d \n", 
+        //   listOfNodes[succesor].getG(), succesor);
+        // printf("distanceFn( listOfNodes[tempID], listOfNodes[succesor] ) is %lf\n",
+         // distanceFn( listOfNodes[tempID], listOfNodes[succesor] ));
 
         if( listOfNodes[succesor].getG() > listOfNodes[tempID].getG() + 
           distanceFn( listOfNodes[tempID], listOfNodes[succesor] ) ){
@@ -489,7 +492,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 
       if(listOfNodes[N_samples+1].isExpanded()){
 
-        printf("target expanded %d \n", ct4);
+        // printf("target expanded %d \n", ct4);
         break;
 
       } else if(open_set.empty()){
@@ -502,11 +505,11 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       ct4++;
     }
 
-    mexPrintf("end while loop 4 - %d \n", ct4);
-    mexEvalString("drawnow");
+    // mexPrintf("end while loop 4 - %d \n", ct4);
+    // mexEvalString("drawnow");
 
-    printf("listOfNodes.back().getG() is %lf \n listOfNodes.back().getAdjIDs()[0] is %d \n", 
-      listOfNodes[N_samples+1].getG(), listOfNodes[N_samples+1].getAdjIDs()[0]);
+    // printf("listOfNodes.back().getG() is %lf \n listOfNodes.back().getAdjIDs()[0] is %d \n", 
+    //   listOfNodes[N_samples+1].getG(), listOfNodes[N_samples+1].getAdjIDs()[0]);
 
 
     ///////// start backtracking ////////////
@@ -533,8 +536,8 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       ct5++;
     }
 
-    mexPrintf("end backtracking while loop - %d \n Start populating plan", ct5);
-    mexEvalString("drawnow");
+    // mexPrintf("end backtracking while loop - %d \n Start populating plan", ct5);
+    // mexEvalString("drawnow");
     // optPath.pop();
     int sizePathFin = optPath.size();
     *planlength = sizePathFin;
@@ -572,7 +575,9 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
 //       }
 //   }    
 //   *planlength = numofsamples;
-
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<milliseconds>(stop - start);
+  mexPrintf("Duration for PRM is %d \n", duration.count());
   return;
 }
 
@@ -592,6 +597,8 @@ static void plannerRRT(
 	   double*** plan,
 	   int* planlength)
 {
+  auto start = high_resolution_clock::now();
+
   //no plan by default
   *plan = NULL;
   *planlength = 0;
@@ -600,7 +607,8 @@ static void plannerRRT(
   double eps = sqrt(numofDOFs)*5.0*PI/180.0;
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
-  bool backwards = 0;
+  bool backwards = 1;
+  int numChecks = std::floor(100*eps);
 
   // initialize
   bool goalRegion = false;
@@ -640,7 +648,7 @@ static void plannerRRT(
 
     int ct1=0;
     // begin while loop
-    while( !goalRegion && ct1<10000000 ){
+    while( !goalRegion ){
 
       ct1++;
       // mexPrintf("entered main while loop \n");
@@ -681,7 +689,8 @@ static void plannerRRT(
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-        int marker = extend( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , tol);
+        int marker = extend( root, tail, currSamplePt, eps, map, x_size, y_size,  endCoord , 
+          tol, numChecks);
         // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
         // mexPrintf("extend returns %d \n", marker);
         // mexEvalString("drawnow");
@@ -811,6 +820,9 @@ static void plannerRRT(
     mexEvalString("drawnow");
   }
 
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<milliseconds>(stop - start);
+  mexPrintf("Duration for RRT is %d \n", duration.count());
   return;
 }
 
@@ -831,22 +843,26 @@ static void plannerRRT_star(
 	   int* planlength)
 {
 	//no plan by default
+  auto start0 = high_resolution_clock::now();
+
 	*plan = NULL;
 	*planlength = 0;
    
   //  parameters
-  double eps = sqrt(numofDOFs)*10.0*PI/180.0;
-  double tol = 2.0*PI/180;
-  double goalProb = 0.02;
-  int N_star = 500;
-  bool backwards = 0;
-  double gamma = 100;
+  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  double tol = 4.0*PI/180;
+  double goalProb = 0.2;
+  int N_star = 10;
+  bool backwards = 1;
+  double gamma = 0.1;
+  int numChecks = std::floor(100*eps);
 
   // initialize
   // bool goalRegion = false;
   srand(time(nullptr));
   double angleUB = 2.0*3.14, angleLB = 0.0;
-  int goalSampling;
+  auto start1 = high_resolution_clock::now();  
+  // int goalSampling;
 
   // store start and end vectors
   std::vector<double> startCoordActual(armstart_anglesV_rad, armstart_anglesV_rad + numofDOFs);
@@ -870,41 +886,25 @@ static void plannerRRT_star(
   if(IsValidArmConfiguration( startCoordActual.data(), numofDOFs, map, x_size, y_size )==1 
     && IsValidArmConfiguration( endCoordActual.data(), numofDOFs, map, x_size, y_size )==1 ){
 
-    // initialize tree with start / end
-    // mexPrintf("before initializing trees \n");
-    // mexEvalString("drawnow");
+    // initialize tree
     NodeRRT_star* root = new NodeRRT_star;
     root->setParent(nullptr);
     root->setCoord( startCoord );
-
-    // NodeRRT_star* tail = new NodeRRT_star;
-    // tail->setParent(nullptr);
 
     int ct=1;
     // begin while loop
     while( ct < N_star || goalNodes.empty() ){
 
-      // mexPrintf("entered main while loop \n");
-      // mexEvalString("drawnow");
+      // sample a new point
       std::vector<double> currSamplePt;
-
-      // srand(time(nullptr));
       double probTemp = randomDouble(0.0, 1.0);
 
-      if (probTemp < goalProb)
-          goalSampling =1;
-      else
-          goalSampling = 0;
-
-
-      if(goalSampling==0){
+      if (probTemp < goalProb){
 
         for (int i = 0; i<numofDOFs; i++){
 
           double temp = randomDouble(angleLB, angleUB);
           currSamplePt.push_back( temp );
-          // mexPrintf("random point is %f \n", temp);
-          // mexEvalString("drawnow");
         }
       }
       else{
@@ -913,34 +913,36 @@ static void plannerRRT_star(
 
           double temp = randomDouble(endCoord[i] - tol, endCoord[i]+tol);
           currSamplePt.push_back( temp );
-          // mexPrintf("goal point is %f \n", temp);
-          // mexEvalString("drawnow");
         }
       }
 
       if ( IsValidArmConfiguration( currSamplePt.data(), numofDOFs, map, x_size, y_size )==1 ){
 
         int modV = ct;
-
         double nearDist = std::min( eps, pow( (gamma * log(modV)/(volSphereFn(numofDOFs)*modV) ), 
-                        1.0/numofDOFs) );
+                          1.0/numofDOFs) );
         // printf("nearDist is %lf \n epsilon is %lf \n", nearDist, eps);
 
         int extendKey = extend_star( root, goalNodes, currSamplePt, eps, map, x_size, y_size,
-                        endCoord , tol, nearDist);
+                        endCoord , tol, nearDist, numChecks);
         // '0' = reached, '1' = advanced, '2' = trapped, '3' = reached goal
         // printf("extend returns %d \n", extendKey);
 
-        if(extendKey!=2){
+        if(extendKey!=2)
+          ct++; printf("ct is %d\n", ct);
 
-          // printf("trapped\n");
-          ct++;
-        }
+        // if(goalNodes.empty()){
+
+        //   start1 = high_resolution_clock::now();  
+        // }
       }
     }
 
-    printf("start backtracking\n");
+    // auto stop1 = high_resolution_clock::now();
+    // auto duration1 = duration_cast<milliseconds>(stop1 - start);
+    // mexPrintf("before backtracking %d \n ct is %d \n", duration1.count(), ct);
 
+    // printf("start backtracking\n");
     if(!backwards){
 
       std::stack< std::vector<double> > finPath;
@@ -1069,6 +1071,11 @@ static void plannerRRT_star(
     mexEvalString("drawnow");
   }
 
+  auto stop = high_resolution_clock::now();
+  auto duration1 = duration_cast<milliseconds>(stop - start0);
+  auto duration2 = duration_cast<milliseconds>(stop - start1);
+  mexPrintf("Total duration for RRT* is %d \n", duration1.count());
+  mexPrintf("Time spent improving solution is %d \n", duration1.count());
   return;
 }
 
@@ -1088,12 +1095,16 @@ static void plannerRRT_connect(
 	   double*** plan,
 	   int* planlength)
 {
-	//no plan by default
+	
+  auto start = high_resolution_clock::now();
+
+  //no plan by default
 	*plan = NULL;
 	*planlength = 0;
 
   //parameters
   double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  int numChecks = std::floor(100*eps);
 
   // initialize
   bool treeConnected = false;
@@ -1136,15 +1147,13 @@ static void plannerRRT_connect(
 
         // newNode1 = nullptr;
         NodeRRT* newNode1 = new NodeRRT;
-        // follow this around to debug
-        // printf("valid arm config\n");
 
-        if(extend_connect(tree1, currSamplePt, newNode1, eps, map, x_size, y_size)!=2){
+        if(extend_connect(tree1, currSamplePt, newNode1, eps, map, x_size, y_size, numChecks)!=2){
 
           // newNode2 = nullptr;
           // printf("extend star if condition entered\n");
 
-          if (connect(tree2, newNode1, tail2, eps, map, x_size, y_size)==0 ){
+          if (connect(tree2, newNode1, tail2, eps, map, x_size, y_size, numChecks)==0 ){
 
             treeConnected=true;
             // tail1->setCoord(newNode1->getCoords());
@@ -1297,6 +1306,9 @@ static void plannerRRT_connect(
     mexEvalString("drawnow");
   }
 
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<milliseconds>(stop - start);
+  mexPrintf("Duration for RRT connect is %d \n", duration.count());
   return;
 }
 

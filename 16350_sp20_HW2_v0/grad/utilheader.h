@@ -75,7 +75,7 @@ double distanceFn( NodePRM node1, NodePRM node2 );
 
 bool same_component( NodePRM pushNodeIn, NodePRM existingNodeIn, std::vector<NodePRM> listOfNodesIn );
 
-bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, int x_size, int y_size);
+bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map, int x_size, int y_size, int numChecks);
 
 
 int IsValidArmConfiguration(double* angles, int numofDOFs, double*  map,
@@ -160,13 +160,14 @@ struct CompareNN{
 
 NodeRRT* nearestNeighbour( std::vector<double> currSamplePt_, NodeRRT* root_ );
 
-void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, std::list< NodePQ > &min_list_);
+void treeDFS( NodeRRT* nodeIn, std::vector<double> currSamplePt_, NodeRRT* &nearest_, 
+  double &min_val_);
 
 int extend( NodeRRT* root_, NodeRRT* tail_, std::vector<double> currSamplePt_ , double eps_, double* map, 
-  int x_size, int y_size, std::vector<double> endCoord_, double tol );
+  int x_size, int y_size, std::vector<double> endCoord_, double tol, int numChecks );
 
 int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_ , double eps_, 
- double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol );
+ double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol, int numChecks );
 
 bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, double tol);
 
@@ -174,13 +175,13 @@ bool reachedGoal( std::vector<double> xVals_, std::vector<double> endCoord_, dou
 // RRT_connect /////
 
 int extend_connect( NodeRRT* tree1_, std::vector<double> currSamplePt_ , NodeRRT* newNode_,
- double eps_, double* map, int x_size, int y_size );
+ double eps_, double* map, int x_size, int y_size, int numChecks );
 
 int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT* newNode_, double eps_,
-         double* map, int x_size, int y_size );
+         double* map, int x_size, int y_size, int numChecks );
 
 int connect( NodeRRT* tree2_, NodeRRT* newNode1_, NodeRRT* tail2_ , 
-  double eps_, double* map, int x_size, int y_size);
+  double eps_, double* map, int x_size, int y_size, int numChecks);
 
 void swapTrees( NodeRRT* tree1_, NodeRRT* tree2_ );
 
@@ -239,13 +240,15 @@ struct CompareNN_star{
 
 NodeRRT_star* nearestNeighbour_star( std::vector<double> currSamplePt_, NodeRRT_star* root_ );
 
-void treeDFS_star( NodeRRT_star* nodeIn, std::vector<double> currSamplePt_, 
-  std::list< NodePQ_star > &min_list_ );
+void treeDFS_star( NodeRRT_star* nodeIn, std::vector<double> currSamplePt_, NodeRRT_star*
+        &nearest_, double &min_val_ );
 
-int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, NodeRRT_star* newNode_ , 
-  double eps_, double* map, int x_size, int y_size, std::vector<double> endCoord_, double tol );
+int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode_, 
+  NodeRRT_star* newNode_ , double eps_,  double* map, int x_size, int y_size, 
+  std::vector<double> endCoord_, double tol, int numChecks );
 
-bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, int x_size, int y_size);
+bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, int x_size, 
+      int y_size, int numChecks);
 
 void nearDFS( NodeRRT_star* nodeIn, NodeRRT_star* newNode_, std::vector<NodeRRT_star*> &nearNodes_, 
   double nearDist_ );
@@ -255,7 +258,7 @@ void nearFn( NodeRRT_star* root_, NodeRRT_star* newNode_, std::vector<NodeRRT_st
 
 int extend_star( NodeRRT_star* root_, std::vector<NodeRRT_star*> &goalNodes_, 
   std::vector<double> currSamplePt_, double eps_, double* map, int x_size, int y_size, 
-  std::vector<double> endCoord_, double tol_, double nearDist_);
+  std::vector<double> endCoord_, double tol_, double nearDist_, int numChecks);
 
 double costOfNode( NodeRRT_star* nodeIn );
 
