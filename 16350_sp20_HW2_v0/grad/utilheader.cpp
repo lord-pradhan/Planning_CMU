@@ -103,8 +103,8 @@ double distanceFn( NodePRM node1, NodePRM node2 ){
 	for(int i=0; i< node1.getCoords().size();i++){
 
 		distance += std::min( (node1.getCoords()[i] - node2.getCoords()[i])*
-		(node1.getCoords()[i] - node2.getCoords()[i]), (2*PI - node1.getCoords()[i] + node2.getCoords()[i])*
-		(2*PI - node1.getCoords()[i] + node2.getCoords()[i]));
+		(node1.getCoords()[i] - node2.getCoords()[i]), (2*PI - fabs(node1.getCoords()[i] - node2.getCoords()[i]))*
+		(2*PI - fabs(node1.getCoords()[i] - node2.getCoords()[i]) ));
 	}	
 	// std::transform( node1.getCoords().begin(), node1.getCoords().end(), node2.getCoords().begin(), 
 	// difference, std::minus<double>() );
@@ -162,10 +162,26 @@ bool can_connect( NodePRM pushNodeIn, NodePRM existingNodeIn , double* map,
 
 		std::vector<double> xVals;
 
-		for(int j = 0; j< pushNodeIn.getCoords().size() ; j++){
+		for(int j =0; j< pushNodeIn.getCoords().size() ; j++){
 
-			xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
-					( existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] ) / numChecks );
+			if(existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] >= PI){
+				
+				xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
+						(existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] - 2*PI) / numChecks );
+				// printf("greater than pi : %d\n", j);
+			}
+			else if(existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] <= -PI){
+
+				xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
+						(existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j] + 2*PI) / numChecks );	
+				// printf("lesser than -pi : %d \n", j);
+			}
+			else{
+
+				xVals.push_back( pushNodeIn.getCoords()[j] + (double) (i+1) * 
+						(existingNodeIn.getCoords()[j] - pushNodeIn.getCoords()[j])/numChecks );
+				// printf("in between : %d\n", j);
+			}
 		}
 
 		if(IsValidArmConfiguration( xVals.data(), pushNodeIn.getCoords().size(), map, x_size, y_size)==0 ){
@@ -225,7 +241,7 @@ double distanceRRT( std::vector<double> vect1, std::vector<double> vect2 ){
 	for(int i=0; i< vect1.size() ; i++){
 
 		distance += std::min( (vect1[i] - vect2[i])* (vect1[i] - vect2[i]) , 
-						(2*PI - vect1[i] + vect2[i])*(2*PI - vect1[i] + vect2[i]) );
+						(2*PI - fabs(vect1[i] - vect2[i]) )*(2*PI - fabs(vect1[i] - vect2[i]) ) );
 	}
 	// std::transform( node1.getCoords().begin(), node1.getCoords().end(), node2.getCoords().begin(), 
 	// difference, std::minus<double>() );
@@ -352,8 +368,22 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 
 	for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-		xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
-													- nearestNode_->getCoords()[j] ) ) ;
+		// wrap to pi
+		if(currSamplePt_[j] - nearestNode_->getCoords()[j] >= PI){
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+								- nearestNode_->getCoords()[j] - 2*PI) ) ;
+		}
+		else if(currSamplePt_[j] - nearestNode_->getCoords()[j] <= -PI ){
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+								- nearestNode_->getCoords()[j] + 2*PI) ) ;	
+		}
+		else{
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*(currSamplePt_[j] 
+								- nearestNode_->getCoords()[j]) ) ;
+		}
 	}
 
 	std::vector<double> xValsPrev = nearestNode_->getCoords();
@@ -363,8 +393,22 @@ int newConfig( std::vector<double> currSamplePt_, NodeRRT* nearestNode_, NodeRRT
 
 		for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-			xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
-													- nearestNode_->getCoords()[j] ) / (double) numChecks );
+			// wrap to pi
+			if(xEnd[j] - nearestNode_->getCoords()[j] >= PI){
+
+				xVals.push_back( nearestNode_->getCoords()[j] + 
+				(double) (i+1)*( xEnd[j] - nearestNode_->getCoords()[j] - 2*PI) / (double) numChecks );
+			}
+			else if(xEnd[j] - nearestNode_->getCoords()[j] <= -PI){
+
+				xVals.push_back( nearestNode_->getCoords()[j] + 
+				(double) (i+1)*( xEnd[j] - nearestNode_->getCoords()[j] + 2*PI) / (double) numChecks );
+			}
+			else{
+
+				xVals.push_back( nearestNode_->getCoords()[j] + 
+					(double) (i+1)*( xEnd[j] - nearestNode_->getCoords()[j] ) / (double) numChecks );
+			}
 		}
 
 		if(IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) == 0){
@@ -466,8 +510,23 @@ int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_,
 
 	for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-		xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
-													- nearestNode_->getCoords()[j] ) ) ;
+		//wrap to pi
+		if(currSamplePt_[j] - nearestNode_->getCoords()[j] >= PI){
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+											- nearestNode_->getCoords()[j] - 2*PI) ) ;
+		}
+		else if(currSamplePt_[j] - nearestNode_->getCoords()[j] <= -PI){
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+											- nearestNode_->getCoords()[j] + 2*PI) ) ;
+		}
+		else{
+
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+											- nearestNode_->getCoords()[j] ) ) ;	
+		}
+
 	}
 
 	std::vector<double> xValsPrev = nearestNode_->getCoords();
@@ -477,8 +536,19 @@ int newConfig_connect( std::vector<double> currSamplePt_, NodeRRT* nearestNode_,
 
 		for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-			xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
-													- nearestNode_->getCoords()[j] ) / (double) numChecks );
+			//wrap to pi
+			if(xEnd[j] - nearestNode_->getCoords()[j] >= PI){
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+									- nearestNode_->getCoords()[j] - 2*PI ) / (double) numChecks );
+			}
+			else if(xEnd[j] - nearestNode_->getCoords()[j] <= -PI){
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+									- nearestNode_->getCoords()[j] + 2*PI) / (double) numChecks );	
+			}
+			else{
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+									- nearestNode_->getCoords()[j]) / (double) numChecks );		
+			}
 		}
 
 		if(IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) == 0){
@@ -675,8 +745,19 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode
 
 	for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-		xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
-													- nearestNode_->getCoords()[j] ) ) ;
+		// wrap to pi
+		if(currSamplePt_[j] - nearestNode_->getCoords()[j] >= PI){
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+														- nearestNode_->getCoords()[j] - 2*PI ) ) ;
+		}
+		else if(currSamplePt_[j] - nearestNode_->getCoords()[j] <= -PI){
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+												- nearestNode_->getCoords()[j] + 2*PI ) ) ;
+		}
+		else{
+			xEnd.push_back(nearestNode_->getCoords()[j] + ratio_temp*( currSamplePt_[j] 
+												- nearestNode_->getCoords()[j] ) ) ;	
+		}
 	}
 
 	std::vector<double> xValsPrev = nearestNode_->getCoords();
@@ -686,8 +767,19 @@ int newConfig_star( std::vector<double> currSamplePt_, NodeRRT_star* nearestNode
 
 		for(int j = 0; j< nearestNode_->getCoords().size() ; j++){
 
-			xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
-													- nearestNode_->getCoords()[j] ) / (double) numChecks );
+			// wrap to pi
+			if(xEnd[j] - nearestNode_->getCoords()[j] >= PI){
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+										- nearestNode_->getCoords()[j] - 2*PI ) / (double) numChecks );
+			}
+			else if(xEnd[j] - nearestNode_->getCoords()[j] <= -PI){
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+										- nearestNode_->getCoords()[j] + 2*PI ) / (double) numChecks );
+			}
+			else{
+				xVals.push_back( nearestNode_->getCoords()[j] + (double) (i+1)*( xEnd[j] 
+										- nearestNode_->getCoords()[j] ) / (double) numChecks );	
+			}
 		}
 
 		if(IsValidArmConfiguration( xVals.data(), xVals.size(), map, x_size, y_size) == 0){
@@ -738,20 +830,27 @@ bool can_connect_star( NodeRRT_star* node1, NodeRRT_star* node2 , double* map, i
 
 		for(int j = 0; j< node1->getCoords().size() ; j++){
 
-			xVals.push_back( node1->getCoords()[j] + (double) (i+1) * 
-					( node2->getCoords()[j] - node1->getCoords()[j] ) / numChecks );
+			// wrap to pi
+			if(node2->getCoords()[j] - node1->getCoords()[j] >= PI){
+				xVals.push_back( node1->getCoords()[j] + (double) (i+1) * 
+						( node2->getCoords()[j] - node1->getCoords()[j] - 2*PI ) / numChecks );
+			}
+			else if(node2->getCoords()[j] - node1->getCoords()[j] <= -PI){
+				xVals.push_back( node1->getCoords()[j] + (double) (i+1) * 
+						( node2->getCoords()[j] - node1->getCoords()[j] + 2*PI ) / numChecks );
+			}
+			else{
+				xVals.push_back( node1->getCoords()[j] + (double) (i+1) * 
+						( node2->getCoords()[j] - node1->getCoords()[j] ) / numChecks );	
+			}
 		}
 
 		if(IsValidArmConfiguration( xVals.data(), node1->getCoords().size(), map, x_size, y_size)==0 ){
 			
-			// mexPrintf("Exiting can_connect false \n");
-			// mexEvalString("drawnow");
 			return false;
 		}
 	}
 
-	// mexPrintf("Exiting can_connect true\n");
-	// mexEvalString("drawnow");
 	return true;
 }
 

@@ -302,7 +302,7 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   int numChecksQuery = 100*nbd_query;
 
   if(numofDOFs<=4)
-    N_samples= pow(6, numofDOFs);
+    N_samples= 100+pow(6, numofDOFs);
   
   else if(numofDOFs ==5)
     N_samples = pow(4, numofDOFs);
@@ -854,7 +854,7 @@ static void plannerRRT_star(
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
   int N_star = 200;
-  bool backwards = 1;
+  bool backwards = 0;
   double gamma = 0.1;
   int numChecks = std::floor(100*eps);
 
