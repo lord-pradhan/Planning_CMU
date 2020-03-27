@@ -9,7 +9,7 @@ mex planner.cpp utilheader.cpp
 rng('shuffle');
 
 for i=1:200
-    numDof = 1 + randi(6);
+    numDof = 2 + randi(5);
     armstart = 2*pi*rand(1, numDof);
     armgoal = 2*pi*rand(1, numDof);
     

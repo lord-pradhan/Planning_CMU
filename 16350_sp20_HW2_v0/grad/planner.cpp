@@ -298,14 +298,14 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
   int N_samples;//=2000;
   double nbd = sqrt(numofDOFs)*20.0*PI/180.0;
   double nbd_query = sqrt(numofDOFs)*90.0*PI/180.0;
-  int numChecks = 100*nbd;
-  int numChecksQuery = 100*nbd_query;
+  int numChecks = 120*nbd;
+  int numChecksQuery = 120*nbd_query;
 
   if(numofDOFs<=4)
     N_samples= 100+pow(6, numofDOFs);
   
   else if(numofDOFs ==5)
-    N_samples = pow(4, numofDOFs);
+    N_samples = 400+pow(4, numofDOFs);
 
   else
     N_samples = 3000;
@@ -407,15 +407,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
       }
     }
 
-    // start_list.sort( list_comp() );
-
-    // auto it0 = start_list.begin();
-    // mexPrintf("start_list sorted is %lf, %lf, %lf \n", distanceFn((*it0).mapNode, (*it0).testNode),
-    //   distanceFn((*std::next(it0,1)).mapNode, (*std::next(it0,1)).testNode), 
-    //   distanceFn((*std::next(it0,2)).mapNode, (*std::next(it0,2)).testNode)  );
-    // mexEvalString("drawnow");
-
-    // end_list.sort( list_comp() );
 
     listOfNodes.push_back(startNode);
     listOfNodes.push_back(endNode);
@@ -457,8 +448,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     int ct4=0;
     while( !listOfNodes[N_samples+1].isExpanded() && !open_set.empty() && ct4<100000){
 
-      // NodePRM temp = open_set.top();
-      // open_set.pop();
       int tempID = open_set.top().getID();
       listOfNodes[tempID].expand();
       open_set.pop();
@@ -573,21 +562,6 @@ static void plannerPRM( double*	map, int x_size, int y_size, double* armstart_an
     mexEvalString("drawnow");
   }
 
-// *plan = (double**) malloc(numofsamples *sizeof(double*));
-//    int firstinvalidconf = 1;
-//   for (i = 0; i < numofsamples; i++){
-//       (*plan)[i] = (double*) malloc(numofDOFs*sizeof(double)); 
-//       for(j = 0; j < numofDOFs; j++){
-//           (*plan)[i][j] = armstart_anglesV_rad[j] + ((double)(i)/(numofsamples-1))*(armgoal_anglesV_rad[j] - armstart_anglesV_rad[j]);
-//       }
-//       if(!IsValidArmConfiguration((*plan)[i], numofDOFs, map, x_size, y_size) && firstinvalidconf)
-//       {
-//           firstinvalidconf = 1;
-//           printf("ERROR: Invalid arm configuration!!!\n");
-//       }
-//   }    
-//   *planlength = numofsamples;
-
   return;
 }
 
@@ -616,7 +590,7 @@ static void plannerRRT(
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
   bool backwards = 1;
-  int numChecks = std::floor(100*eps);
+  int numChecks = std::floor(120*eps);
 
   // initialize
   bool goalRegion = false;
@@ -854,9 +828,9 @@ static void plannerRRT_star(
   double tol = 2.0*PI/180;
   double goalProb = 0.2;
   int N_star = 200;
-  bool backwards = 0;
+  bool backwards = 1;
   double gamma = 0.1;
-  int numChecks = std::floor(100*eps);
+  int numChecks = std::floor(120*eps);
 
   // initialize
   // bool goalRegion = false;
@@ -1098,8 +1072,8 @@ static void plannerRRT_connect(
 	*planlength = 0;
 
   //parameters
-  double eps = sqrt(numofDOFs)*3.0*PI/180.0;
-  int numChecks = std::floor(100*eps);
+  double eps = sqrt(numofDOFs)*5.0*PI/180.0;
+  int numChecks = std::floor(120*eps);
 
   // initialize
   bool treeConnected = false;
