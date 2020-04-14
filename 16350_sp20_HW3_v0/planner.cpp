@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <stdexcept>
-#include "utilfunction.h"
+// #include "utilfunction.h"
 
 #define SYMBOLS 0
 #define INITIAL 1
@@ -370,6 +370,10 @@ public:
     void add_action(Action action)
     {
         this->actions.insert(action);
+    }
+
+    unordered_set<Action, ActionHasher, ActionComparator> get_actions(){
+        return actions;
     }
 
     Action get_action(string name)
@@ -764,8 +768,8 @@ list<GroundedAction> planner(Env* env)
     // this is where you insert your planner
 
     // initialize stuff
-    unordered_map< unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>, 
-                    double, setHashFn> lookUpG;            
+    // unordered_map< unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>, 
+    //                 double, setHashFn> lookUpG;            
 
 
     // initialize the root of tree
@@ -773,7 +777,7 @@ list<GroundedAction> planner(Env* env)
     root->setParent(nullptr);
     root->setG(0.0);
     root->setCondition(env->get_initial_condition());
-    lookUpG[env->get_initial_condition()] = 0.0;
+    // lookUpG[env->get_initial_condition()] = 0.0;
 
     priority_queue< TreeNode*, vector<TreeNode*>, CompareF > open_set;
     open_set.push(root);
@@ -790,7 +794,7 @@ list<GroundedAction> planner(Env* env)
                 GroundedConditionComparator> > succesorConditions;
         
         // expand tree inside function
-        tempPtr->calcSuccesors(env, nextActions, succesorConditions, lookUpG, root);
+        tempPtr->calcSuccesors(env, nextActions, succesorConditions, lookUpG, root, tempPtr);
 
         for (auto i : tempPtr->getSuccesors()){
 
@@ -814,6 +818,14 @@ list<GroundedAction> planner(Env* env)
     }
 
     optPath.push(open_set.top()->getCondition());
+
+    // for(auto i : env->get_actions() ){
+
+    //     cout<<"Action is "<<i<<endl;
+    //     // for(auto j:i.get_args()){
+    //     //     cout<<"Args are "<<j<<endl;
+    //     // }
+    // }
 
     // blocks world example
     list<GroundedAction> actions;
