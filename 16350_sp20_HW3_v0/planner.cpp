@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <stdexcept>
+#include "utilfunction.h"
 
 #define SYMBOLS 0
 #define INITIAL 1
@@ -124,6 +125,7 @@ struct GroundedConditionHasher
 {
     size_t operator()(const GroundedCondition& gcond) const
     {
+        cout<<"Hash value is "<<hash<string>{}(gcond.toString());
         return hash<string>{}(gcond.toString());
     }
 };
@@ -337,6 +339,17 @@ public:
     {
         this->initial_conditions.insert(gc);
     }
+
+    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> get_initial_condition() const
+    {
+        return initial_conditions;
+    }
+
+    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> get_goal_condition() const
+    {
+        return goal_conditions;
+    }
+
     void add_goal_condition(GroundedCondition gc)
     {
         this->goal_conditions.insert(gc);
@@ -401,8 +414,8 @@ class GroundedAction
 private:
     string name;
     list<string> arg_values;
-    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> gPreconditions;
-    unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> gEffects;
+    // unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> gPreconditions;
+    // unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> gEffects;
 
 public:
     GroundedAction(string name, list<string> arg_values)
@@ -743,9 +756,64 @@ Env* create_env(char* filename)
     return env;
 }
 
+
+
+///////////////// ****** Planner *******////////////
 list<GroundedAction> planner(Env* env)
 {
     // this is where you insert your planner
+
+    // initialize stuff
+    unordered_map< unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>, 
+                    double, setHashFn> lookUpG;            
+
+
+    // initialize the root of tree
+    TreeNode* root = new TreeNode;
+    root->setParent(nullptr);
+    root->setG(0.0);
+    root->setCondition(env->get_initial_condition());
+    lookUpG[env->get_initial_condition()] = 0.0;
+
+    priority_queue< TreeNode*, vector<TreeNode*>, CompareF > open_set;
+    open_set.push(root);
+    // root->expand();
+
+    while( (!open_set.empty()) && ( open_set.top()->getCondition() !=env->get_goal_condition()) ){
+
+        TreeNode* tempPtr = open_set.top();
+        tempPtr->expand();
+        open_set.pop();
+
+        vector<GroundedAction> nextActions;
+        vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+                GroundedConditionComparator> > succesorConditions;
+        
+        // expand tree inside function
+        tempPtr->calcSuccesors(env, nextActions, succesorConditions, lookUpG, root);
+
+        for (auto i : tempPtr->getSuccesors()){
+
+            if( i->getG() > tempPtr->getG() + 1 ){
+
+                i->setG(tempPtr->getG() + 1);
+                open_set.push(i);
+            }
+        }
+    }
+
+    stack<TreeNode*> optPath;
+
+    if(open_set.top()->getCondition() !=env->get_goal_condition()){
+
+        cout<<"Open set empty \n";
+    }
+    else{
+        
+        cout<<"target expanded! \n";
+    }
+
+    optPath.push(open_set.top()->getCondition());
 
     // blocks world example
     list<GroundedAction> actions;
