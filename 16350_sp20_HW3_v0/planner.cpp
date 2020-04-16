@@ -328,18 +328,18 @@ list<GroundedAction> planner(Env* env)
     open_set.push(root);
     // root->expand();
 
-    while( (!open_set.empty()) && ( open_set.top()->getCondition() !=env->get_goal_condition()) ){
+    while( (!open_set.empty()) && !( open_set.top()->getCondition() == env->get_goal_condition()) ){
 
         TreeNode* tempPtr = open_set.top();
         tempPtr->expand();
         open_set.pop();
 
-        vector<GroundedAction> nextActions;
-        vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
-                GroundedConditionComparator> > succesorConditions;
+        // vector<GroundedAction> nextActions;
+        // vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+        //         GroundedConditionComparator> > succesorConditions;
         
         // expand tree inside function
-        calcSuccesors(env, nextActions, succesorConditions, open_set, tempPtr);        
+        calcSuccesors(env, open_set, tempPtr);        
     }
 
     // // stack<TreeNode*> optPath;

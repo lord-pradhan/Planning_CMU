@@ -19,10 +19,10 @@ using namespace std;
 #define UTILFUNCTION_H
 
 // class GroundedCondition;
-class Condition;
-class GroundedAction;
-class Action;
-class Env;
+// class Condition;
+// class GroundedAction;
+// class Action;
+// class Env;
 
 class GroundedCondition
 {
@@ -67,7 +67,7 @@ struct GroundedConditionHasher
 {
     size_t operator()(const GroundedCondition& gcond) const
     {
-        cout<<"Hash value is "<<hash<string>{}(gcond.toString());
+        // cout<<"Hash value is "<<hash<string>{}(gcond.toString());
         return hash<string>{}(gcond.toString());
     }
 };
@@ -326,18 +326,18 @@ struct CompareF{
 //         return sumHash;
 // 	}
 // } 
+bool distinctElems(list<string> candidate);
 
 vector< list<string> > combinationCalc( const unordered_set<string>& symbolsIn, int K );
 
-list<string> calcOverlap(list<string> smaller, list<string> larger, list<string> argsIn);
+list<string> calcOverlap(list<string> smaller, list<string> larger, list<string> argsIn,
+	unordered_set<string> symbolsIn);
 
 bool precondCheck(const unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>
     &precondsTempIn, const unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>&
     currConditionsIn );
 
-void calcSuccesors(Env* envIn, vector<GroundedAction>& nextActionsIn, 
-    vector< unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> >&
-    succesorConditionsIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
+void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
     TreeNode* &tempPtrIn );
 
 #endif
