@@ -41,7 +41,7 @@ bool GroundedCondition::get_truth() const
 
 void GroundedCondition::set_truth(bool truthIn){
 
-    this->truth = truthIn;
+    truth = truthIn;
 }
 
 
@@ -432,19 +432,20 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
             unordered_set<GroundedCondition, GroundedConditionHasher, 
                 GroundedConditionComparator> succesorTemp = currConditions;
 
-            for(auto i_precond : i_action.get_preconditions()){
+            auto argsAction = i_action.get_args();
 
-                auto argsAction = i_action.get_args();
+            for(auto i_precond : i_action.get_preconditions()){
+                
                 auto argsPreCond = i_precond.get_args();
                 // auto commonIndices
                 // cout<<"argsAction size is "<<argsAction.size()<<endl;
                 // cout<<"i_args size is "<<i_args.size()<<endl;
                 list<string> stringInd = calcOverlap(argsPreCond, argsAction, i_args, envIn->get_symbols());
 
-                if(!distinctElems(stringInd)){
-                    distinct = false;
-                    break;
-                }            
+                // if(!distinctElems(stringInd)){
+                //     distinct = false;
+                //     break;
+                // }            
                 // vector<string> stringInd;
                 // for(auto i_temp : commonIndices){
                 //     stringInd.push_back(i_args[i_temp]);
@@ -454,19 +455,18 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 precondsTemp.insert(precondNew);
             }
 
-            if(!distinct)
-                continue;
+            // if(!distinct)
+            //     continue;
 
             for(auto i_effect : i_action.get_effects()){
 
-                auto argsAction = i_action.get_args();
                 auto argsEffect = i_effect.get_args();
                 list<string> stringInd = calcOverlap(argsEffect, argsAction, i_args, envIn->get_symbols());
 
-                if(!distinctElems(stringInd)){
-                    distinct = false;
-                    break;
-                }
+                // if(!distinctElems(stringInd)){
+                //     distinct = false;
+                //     break;
+                // }
                 //  stringInd;
                 // for(auto i_temp : commonIndices){
                 //     stringInd.push_back(i_args[i_temp]);
@@ -476,32 +476,47 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 effectsTemp.insert(effectNew);
             }
 
-            if(!distinct)
-                continue;
+            // if(!distinct)
+            //     continue;
+            // cout<<"Preconditions before checking validity are ";
+            // for(auto i : precondsTemp){cout<<i<<", ";}
+            // cout<<endl;
 
             bool validAction = precondCheck( precondsTemp, currConditions );
             
             if(validAction && distinct){
 
                 cout<<"Action is valid"<<endl;
-                for(auto i_cond : effectsTemp){
 
-                    if(i_cond.get_truth()){
+                // auto itSet = effectsTemp.begin();
 
-                        succesorTemp.insert(i_cond);
-                        cout<<"Condition inserted is "<<i_cond<<endl;
+                for(auto i_set : effectsTemp){
+
+                    if(i_set.get_truth()){
+
+                        cout<<"Condition inserted is "<<i_set<<endl;
+                        succesorTemp.insert(i_set);
+                        // itSet++;                        
                     }
                     else{
+                    
+                        // auto tempIt = succesorTemp.find(*itSet);
+                        auto temp_set = i_set;
+                        temp_set.set_truth(true);
 
-                        auto tempIt = succesorTemp.find(i_cond);
-                        succesorTemp.erase(tempIt);
-                        // succesorTemp.erase(i_cond);
-                        cout<<"Condition erased is "<<i_cond<<endl;
+                        auto itSucc = succesorTemp.begin();
+                        while(itSucc!=succesorTemp.end()){
+
+                            if((*itSucc) == temp_set){
+                                cout<<"Condition erased is "<<*itSucc<<endl;
+                                succesorTemp.erase(itSucc);                                
+                                break;
+                            }
+                            else
+                                itSucc++;
+                        }                       
                     }
                 }
-                
-                // succesorConditionsIn.push_back(succesorTemp);
-                // nextActionsIn.push_back(grdAcTemp);
 
                 // add to tree
                 TreeNode* succNode = new TreeNode;
@@ -510,6 +525,7 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 succNode->setG( tempPtrIn->getG() + 1 );
                 tempPtrIn->addSuccesor(succNode);
                 tempPtrIn->addNextAction(grdAcTemp);
+                cout<<"next action added is "<<grdAcTemp<<endl;
 
                 open_setIn.push(succNode);
 
@@ -639,10 +655,27 @@ vector< list<string> > combinationCalc( const unordered_set<string>& symbolsIn, 
             symCt++;
         }
 
-        actionArgCombinations.push_back(listTemp);
+        // cout<<"Before Permutation list of strings is ";
+        // for(auto i : listTemp){cout<<i<<", ";}
+        // cout<<endl;
+
+        findPermutations(listTemp, actionArgCombinations);
+
+        // actionArgCombinations.push_back(listTemp);
         combnCt++;
 
     } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
 
     return actionArgCombinations;
+}
+
+void findPermutations(list<string> smaller, vector<list<string> >& combinationVect ) 
+{ 
+    // Sort the given array 
+    smaller.sort();
+
+    do { 
+        combinationVect.push_back(smaller);
+
+    } while (next_permutation(smaller.begin(), smaller.end())); 
 }

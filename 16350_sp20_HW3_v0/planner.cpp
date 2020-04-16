@@ -328,7 +328,8 @@ list<GroundedAction> planner(Env* env)
     open_set.push(root);
     // root->expand();
 
-    while( (!open_set.empty()) && !( open_set.top()->getCondition() == env->get_goal_condition()) ){
+    while( (!open_set.empty()) &&
+     !( precondCheck( env->get_goal_condition(), open_set.top()->getCondition() ) ) ){
 
         TreeNode* tempPtr = open_set.top();
         tempPtr->expand();
@@ -343,10 +344,11 @@ list<GroundedAction> planner(Env* env)
     }
 
     // // stack<TreeNode*> optPath;
-    queue<GroundedAction> actionQueue;
+    stack<GroundedAction> actionQueue;
     list<GroundedAction> actions;
 
-    if(open_set.top()->getCondition() !=env->get_goal_condition()){
+    if( !precondCheck( env->get_goal_condition(),  open_set.top()->getCondition() ) ){
+        //open_set.top()->getCondition() !=env->get_goal_condition()){
 
         cout<<"Open set empty \n";
     }
@@ -355,16 +357,26 @@ list<GroundedAction> planner(Env* env)
         cout<<"target expanded! \n";
         TreeNode* traverse = open_set.top();
 
-        while(traverse->getParent()==nullptr){
+        while(traverse->getParent()!=nullptr){
 
             auto condTemp = traverse->getCondition();
+
+            // cout<<"condTemp is ";
+            // for(auto i : condTemp){cout<<i<<", ";}
+            // cout<<endl;
+
             traverse = traverse->getParent();
             int i_ct=0;
             for(auto i : traverse->getSuccesors()){
 
+                // cout<<"i->getCondition is ";
+                // for(auto j : i->getCondition()){cout<<j<<", ";}
+                // cout<<endl;
+
                 if(i->getCondition() == condTemp){
 
                     actionQueue.push(traverse->getNextAction()[i_ct]);
+                    cout<<"broke"<<endl;
                     break;
                 }
 
@@ -375,7 +387,7 @@ list<GroundedAction> planner(Env* env)
 
     while(!actionQueue.empty()){
 
-        actions.push_back(actionQueue.front());
+        actions.push_back(actionQueue.top());
         actionQueue.pop();
     }
 
