@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include "utilfunction.h"
 #include <queue>
+#include <chrono> 
+using namespace std::chrono;
 
 #define SYMBOLS 0
 #define INITIAL 1
@@ -312,15 +314,13 @@ Env* create_env(char* filename)
 list<GroundedAction> planner(Env* env)
 {
     // this is where you insert your planner
-
-    // initialize stuff
-    // unordered_map< unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator>, 
-    //                 double, setHashFn> lookUpG;            
+    auto start = high_resolution_clock::now();    
 
     // initialize the root of tree
     TreeNode* root = new TreeNode;
     root->setParent(nullptr);
     root->setG(0.0);
+    root->calcH(env->get_goal_condition());
     root->setCondition(env->get_initial_condition());
     // lookUpG[env->get_initial_condition()] = 0.0;
 
@@ -404,7 +404,9 @@ list<GroundedAction> planner(Env* env)
     // actions.push_back(GroundedAction("MoveToTable", { "A", "B" }));
     // actions.push_back(GroundedAction("Move", { "C", "Table", "A" }));
     // actions.push_back(GroundedAction("Move", { "B", "Table", "C" }));
-
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop-start);
+    cout<<"Planner runs in time "<<duration.count()<<" microseconds"<<endl;
     return actions;
 }
 

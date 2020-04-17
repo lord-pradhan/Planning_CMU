@@ -268,7 +268,7 @@ class TreeNode{
 
 private:
 	unordered_set<GroundedCondition, GroundedConditionHasher, GroundedConditionComparator> conditions;
-	double G_val;
+	double G_val, H_val;
 	vector<TreeNode*> succesors;
 	vector<GroundedAction> nextActions;
 	TreeNode* parent;
@@ -282,6 +282,7 @@ public:
 	vector<TreeNode*> getSuccesors() const;
 	TreeNode* getParent() const;
 	double getG() const;
+	double getH() const;
 	bool isExpanded() const;
 	vector<GroundedAction> getNextAction() const;
 
@@ -295,6 +296,9 @@ public:
 	void setSuccesors(const vector<TreeNode*>& succIns);	
 	void setParent(TreeNode* parentIn);
 	void setG(const double& G_in);
+	void calcH(const unordered_set<GroundedCondition, GroundedConditionHasher, 
+		GroundedConditionComparator>& goalCondsIn);
+
 	void expand();
 	void setNextActions(vector<GroundedAction> actionsIn);
 };
@@ -304,7 +308,7 @@ struct CompareF{
     bool operator()(TreeNode* t1, TreeNode* t2) {
         // return "true" if "p1" is ordered before "p2", for example:
         long eps = 1;
-        return t1->getG() > t2->getG();
+        return t1->getG()+eps*t1->getH() > t2->getG()+ eps*t2->getH();
     }
 };
 // class setHashFn{ 

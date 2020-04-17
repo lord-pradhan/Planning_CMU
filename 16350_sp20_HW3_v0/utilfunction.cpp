@@ -355,6 +355,11 @@ double TreeNode::getG() const{
     return G_val;
 }
 
+double TreeNode::getH() const{
+
+    return H_val;
+}
+
 bool TreeNode::isExpanded() const{
 
     return expanded;
@@ -397,6 +402,19 @@ void TreeNode::setG(const double& G_in){
     G_val = G_in;
 }
 
+void TreeNode::calcH(const unordered_set<GroundedCondition, GroundedConditionHasher, 
+    GroundedConditionComparator>& goalCondsIn){
+
+    int overlap=0;
+    for(auto i_goal : goalCondsIn){
+
+        if(conditions.find(i_goal)==conditions.end())
+            overlap++;       
+    }
+
+    H_val = (double) overlap;
+}
+
 void TreeNode::expand(){expanded = true;}
 
 void TreeNode::setNextActions(vector<GroundedAction> actionsIn){
@@ -410,9 +428,9 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
     int numSym = envIn->get_symbols().size();
     auto currConditions = tempPtrIn->getCondition();
 
-    cout<<"\nIncoming conditions are ";
-    for(auto i : currConditions){cout<<i<<", ";}
-    cout<<endl;
+    // cout<<"\nIncoming conditions are ";
+    // for(auto i : currConditions){cout<<i<<", ";}
+    // cout<<endl;
 
     for(auto i_action : envIn->get_actions()){
 
@@ -486,7 +504,7 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
             
             if(validAction && distinct){
 
-                cout<<"Action is valid"<<endl;
+                // cout<<"Action is valid"<<endl;
 
                 // auto itSet = effectsTemp.begin();
 
@@ -494,7 +512,7 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
 
                     if(i_set.get_truth()){
 
-                        cout<<"Condition inserted is "<<i_set<<endl;
+                        // cout<<"Condition inserted is "<<i_set<<endl;
                         succesorTemp.insert(i_set);
                         // itSet++;                        
                     }
@@ -508,7 +526,7 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                         while(itSucc!=succesorTemp.end()){
 
                             if((*itSucc) == temp_set){
-                                cout<<"Condition erased is "<<*itSucc<<endl;
+                                // cout<<"Condition erased is "<<*itSucc<<endl;
                                 succesorTemp.erase(itSucc);                                
                                 break;
                             }
@@ -523,15 +541,16 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 succNode->setParent(tempPtrIn);
                 succNode->setCondition(succesorTemp);
                 succNode->setG( tempPtrIn->getG() + 1 );
+                succNode->calcH(envIn->get_goal_condition());
                 tempPtrIn->addSuccesor(succNode);
                 tempPtrIn->addNextAction(grdAcTemp);
-                cout<<"next action added is "<<grdAcTemp<<endl;
+                // cout<<"next action added is "<<grdAcTemp<<endl;
 
                 open_setIn.push(succNode);
 
-                cout<<"Outgoing conditions are ";
-                for(auto i : succesorTemp){cout<<i<<", ";}
-                cout<<endl;
+                // cout<<"Outgoing conditions are ";
+                // for(auto i : succesorTemp){cout<<i<<", ";}
+                // cout<<endl;
             }
         }
     }
