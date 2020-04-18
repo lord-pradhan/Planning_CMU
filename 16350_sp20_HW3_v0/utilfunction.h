@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <queue>
 #include <limits>
+#include <chrono> 
+using namespace std::chrono;
 
 using namespace std;
 
@@ -311,25 +313,39 @@ struct CompareF{
         return t1->getG()+eps*t1->getH() > t2->getG()+ eps*t2->getH();
     }
 };
-// class setHashFn{ 
-// public: 
+
+class setComparator{
+public:
+
+    bool operator()(const unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator>& lhs, const unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator>& rhs) const
+    {
+        return lhs == rhs;
+    }
+};
+
+
+class setHashFn{ 
+public: 
   
-//     // Use sum of lengths of first and last names 
-//     // as hash function. 
-//     double operator()(const unordered_set<GroundedCondition, GroundedConditionHasher, 
-//     					GroundedConditionComparator>& setIn) const{ 
+    // Use sum of lengths of first and last names 
+    // as hash function. 
+    double operator()(const unordered_set<GroundedCondition, GroundedConditionHasher, 
+    					GroundedConditionComparator>& setIn) const{ 
 
-//     	// int sizetemp = setIn.size(); 
-//     	double sumHash = 0;
+    	// int sizetemp = setIn.size(); 
+    	double sumHash = 0;
 
-//     	for(auto i : setIn){
+    	for(auto i : setIn){
 
-//         	sumHash += hash<string>{}(i.toString());
-//         }
+        	sumHash += hash<string>{}(i.toString());
+        }
 
-//         return sumHash;
-// 	}
-// } 
+        return sumHash;
+	}
+};
+
 bool distinctElems(list<string> candidate);
 
 vector< list<string> > combinationCalc( const unordered_set<string>& symbolsIn, int K );
@@ -342,8 +358,12 @@ bool precondCheck(const unordered_set<GroundedCondition, GroundedConditionHasher
     currConditionsIn );
 
 void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
-    TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
-    GroundedConditionComparator> >& closed_listIn );
+    TreeNode* &tempPtrIn, const unordered_set< unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator>, setHashFn, setComparator >& closed_listIn );
+
+// void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
+//     TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+//         GroundedConditionComparator> >& closed_listIn );
 
 void findPermutations(list<string> smaller, vector<list<string> >& combinationVect );
 

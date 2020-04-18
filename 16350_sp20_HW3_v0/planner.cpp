@@ -315,9 +315,12 @@ list<GroundedAction> planner(Env* env)
 {
     // this is where you insert your planner
     auto start = high_resolution_clock::now();    
+    int expansions=0;
 
-    vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
-        GroundedConditionComparator> > closed_list;
+    unordered_set< unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator>, setHashFn, setComparator > closed_list;
+    // vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+    //     GroundedConditionComparator> > closed_list;
 
     // initialize the root of tree
     TreeNode* root = new TreeNode;
@@ -325,24 +328,29 @@ list<GroundedAction> planner(Env* env)
     root->setG(0.0);
     root->setCondition(env->get_initial_condition());
     root->calcH(env->get_goal_condition());
-    cout<<"root h_val is "<<root->getH()<<endl;
-    // lookUpG[env->get_initial_condition()] = 0.0;
+    // cout<<"root h_val is "<<root->getH()<<endl;
 
     priority_queue< TreeNode*, vector<TreeNode*>, CompareF > open_set;
     open_set.push(root);
-    // root->expand();
 
     while( (!open_set.empty()) &&
      !( precondCheck( env->get_goal_condition(), open_set.top()->getCondition() ) ) ){
 
         TreeNode* tempPtr = open_set.top();
-        tempPtr->expand();
         open_set.pop();
-        closed_list.push_back( tempPtr->getCondition() );
+        closed_list.insert( tempPtr->getCondition() );
+        expansions++;
+        // closed_list.push_back( tempPtr->getCondition() );
         
         // expand tree inside function
+        // auto start_temp = high_resolution_clock::now();
         calcSuccesors(env, open_set, tempPtr, closed_list);
+        // auto stop_temp = high_resolution_clock::now();
+        // auto duration_temp = duration_cast<microseconds>(stop_temp-start_temp);
+        // cout<<"Each calcSuccesors takes "<<duration_temp.count()<<endl;
     }
+
+    auto stop0 = high_resolution_clock::now();
 
     // // stack<TreeNode*> optPath;
     stack<GroundedAction> actionQueue;
@@ -351,11 +359,11 @@ list<GroundedAction> planner(Env* env)
     if( !precondCheck( env->get_goal_condition(),  open_set.top()->getCondition() ) ){
         //open_set.top()->getCondition() !=env->get_goal_condition()){
 
-        cout<<"Open set empty \n";
+        cout<<"Open set empty, no solution obtained.\n";
     }
     else{
         
-        cout<<"target expanded! \n";
+        cout<<"Target expanded! \n";
         TreeNode* traverse = open_set.top();
 
         while(traverse->getParent()!=nullptr){
@@ -377,7 +385,7 @@ list<GroundedAction> planner(Env* env)
                 if(i->getCondition() == condTemp){
 
                     actionQueue.push(traverse->getNextAction()[i_ct]);
-                    cout<<"broke"<<endl;
+                    // cout<<"broke"<<endl;
                     break;
                 }
 
@@ -400,14 +408,14 @@ list<GroundedAction> planner(Env* env)
     //     // }
     // }
 
-    // // blocks world example
-    
-    // actions.push_back(GroundedAction("MoveToTable", { "A", "B" }));
-    // actions.push_back(GroundedAction("Move", { "C", "Table", "A" }));
-    // actions.push_back(GroundedAction("Move", { "B", "Table", "C" }));
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<microseconds>(stop-start);
-    cout<<"Planner runs in time "<<duration.count()<<" microseconds"<<endl;
+
+    auto stop1 = high_resolution_clock::now();
+    auto duration_tot = duration_cast<microseconds>(stop1-start);
+    auto duration_exp = duration_cast<microseconds>(stop0-start);
+    cout<<"Planner runs in total time "<<duration_tot.count()<<" microseconds"<<endl;
+    cout<<"Expansion takes "<<duration_exp.count()<<" microseconds"<<endl;
+    cout<<"Number of expansions are "<<expansions<<endl;
+    cout<<"Number of actions is "<<actions.size()<<endl;
     return actions;
 }
 
@@ -415,8 +423,8 @@ int main(int argc, char* argv[])
 {
     // DO NOT CHANGE THIS FUNCTION
     // char* filename = (char*)("example.txt");
-    char* filename = (char*)("block_triangle.txt");
-    // char* filename = (char*)("fire_extinguisher.txt");
+    // char* filename = (char*)("block_triangle.txt");
+    char* filename = (char*)("fire_extinguisher.txt");
     if (argc > 1)
         filename = argv[1];
 

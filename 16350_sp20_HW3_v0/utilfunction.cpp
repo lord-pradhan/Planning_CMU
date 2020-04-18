@@ -424,15 +424,18 @@ void TreeNode::setNextActions(vector<GroundedAction> actionsIn){
 }
 
 void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
-    TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
-    GroundedConditionComparator> >&closed_listIn ){
+    TreeNode* &tempPtrIn, const unordered_set< unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator>, setHashFn, setComparator >& closed_listIn ){
+// void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
+//     TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+//         GroundedConditionComparator> >& closed_listIn ){
 
     int numSym = envIn->get_symbols().size();
     auto currConditions = tempPtrIn->getCondition();
 
-    cout<<"\nIncoming conditions are ";
-    for(auto i : currConditions){cout<<i<<", ";}
-    cout<<endl;
+    // cout<<"\nIncoming conditions are ";
+    // for(auto i : currConditions){cout<<i<<", ";}
+    // cout<<endl;
 
     for(auto i_action : envIn->get_actions()){
 
@@ -475,34 +478,16 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 precondsTemp.insert(precondNew);
             }
 
-            if(!distinct)
-                continue;
+            // if(!distinct)
+            //     continue;
 
-            for(auto i_effect : i_action.get_effects()){
-
-                auto argsEffect = i_effect.get_args();
-                list<string> stringInd = calcOverlap(argsEffect, argsAction, i_args, envIn->get_symbols());
-
-                // if(!distinctElems(stringInd)){
-                //     distinct = false;
-                //     break;
-                // }
-                //  stringInd;
-                // for(auto i_temp : commonIndices){
-                //     stringInd.push_back(i_args[i_temp]);
-                // }
-                GroundedCondition effectNew( i_effect.get_predicate(), stringInd, i_effect.get_truth() );
-                // cout<<"Final effect is "<<effectNew<<", truth is "<<i_effect.get_truth()<<endl;
-                effectsTemp.insert(effectNew);
-            }
+            bool validAction = precondCheck( precondsTemp, currConditions );            
 
             // if(!distinct)
             //     continue;
             // cout<<"Preconditions before checking validity are ";
             // for(auto i : precondsTemp){cout<<i<<", ";}
             // cout<<endl;
-
-            bool validAction = precondCheck( precondsTemp, currConditions );
             
             if(validAction && distinct){
 
@@ -510,18 +495,33 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
 
                 // auto itSet = effectsTemp.begin();
 
-                for(auto i_set : effectsTemp){
+                for(auto i_effect : i_action.get_effects()){
 
-                    if(i_set.get_truth()){
+                    auto argsEffect = i_effect.get_args();
+                    list<string> stringInd = calcOverlap(argsEffect, argsAction, i_args, envIn->get_symbols());
+
+                    // if(!distinctElems(stringInd)){
+                    //     distinct = false;
+                    //     break;
+                    // }
+                    //  stringInd;
+                    // for(auto i_temp : commonIndices){
+                    //     stringInd.push_back(i_args[i_temp]);
+                    // }
+
+                    GroundedCondition effectNew( i_effect.get_predicate(), stringInd, i_effect.get_truth() );                    
+                    effectsTemp.insert(effectNew);
+
+                    if(effectNew.get_truth()){
 
                         // cout<<"Condition inserted is "<<i_set<<endl;
-                        succesorTemp.insert(i_set);
+                        succesorTemp.insert(effectNew);
                         // itSet++;                        
                     }
                     else{
                     
                         // auto tempIt = succesorTemp.find(*itSet);
-                        auto temp_set = i_set;
+                        auto temp_set = effectNew;
                         temp_set.set_truth(true);
 
                         auto itSucc = succesorTemp.begin();
@@ -538,9 +538,9 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                     }
                 }
 
-                auto itClosed = find( closed_listIn.begin(), closed_listIn.end(), succesorTemp );
-                //if( closed_listIn.find(succesorTemp)==closed_listIn.end() ){
-                if(itClosed==closed_listIn.end()){
+                // auto itClosed = find( closed_listIn.begin(), closed_listIn.end(), succesorTemp );
+                if( closed_listIn.find(succesorTemp)==closed_listIn.end() ){
+                // if(itClosed==closed_listIn.end()){
                     // add to tree
                     TreeNode* succNode = new TreeNode;
                     succNode->setParent(tempPtrIn);
@@ -549,13 +549,13 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                     succNode->calcH(envIn->get_goal_condition());
                     tempPtrIn->addSuccesor(succNode);
                     tempPtrIn->addNextAction(grdAcTemp);
-                    cout<<"next action added is "<<grdAcTemp<<endl;
+                    // cout<<"next action added is "<<grdAcTemp<<endl;
 
                     open_setIn.push(succNode);
 
-                    cout<<"Outgoing conditions are ";
-                    for(auto i : succesorTemp){cout<<i<<", ";}
-                    cout<<endl;
+                    // cout<<"Outgoing conditions are ";
+                    // for(auto i : succesorTemp){cout<<i<<", ";}
+                    // cout<<endl;
                 }
             }
         }
@@ -599,36 +599,29 @@ list<string> calcOverlap(list<string> smaller, list<string> larger, list<string>
     
     list<string> stringOut;
     auto it_arg = argsIn.begin();
-    // cout<<"\nsmaller string is ";
-    // for(auto i : smaller){cout<<i<<", ";}
-    // cout<<endl;
 
-    // cout<<"\n larger string is ";
-    // for(auto i:larger){cout<<i<<", ";}
-    // cout<<endl;
-
-    // cout<<"\n argsIn string is ";
-    // for(auto i:argsIn){cout<<i<<", ";}
-    // cout<<endl;
-
-    for(auto i: smaller){
+    for(auto i : smaller){
 
         // cout<<"\n smaller elem is "<<i<<endl;
-        bool found = false;
+        // bool found = false;
         
-        for(auto temp : symbolsIn){
+        // for(const auto& temp : symbolsIn){
 
-            if(temp == i){
-                found = true;
-                stringOut.push_back(i);
-                break;
-            }
+        //     if(temp == i){
+        //         found = true;
+        //         stringOut.push_back(i);
+        //         break;
+        //     }
+        // }
+        auto elemIt = symbolsIn.find(i);
+
+        if(elemIt!=symbolsIn.end()){
+
+            stringOut.push_back(*elemIt);
         }
-
-        if(!found){
+        else{
          
             int jCt=0;
-
             for(auto j : larger){
 
                 if(j==i){                
