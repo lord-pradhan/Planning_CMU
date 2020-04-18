@@ -342,7 +342,8 @@ bool precondCheck(const unordered_set<GroundedCondition, GroundedConditionHasher
     currConditionsIn );
 
 void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
-    TreeNode* &tempPtrIn );
+    TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+    GroundedConditionComparator> >& closed_listIn );
 
 void findPermutations(list<string> smaller, vector<list<string> >& combinationVect );
 

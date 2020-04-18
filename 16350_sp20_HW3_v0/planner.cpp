@@ -316,12 +316,16 @@ list<GroundedAction> planner(Env* env)
     // this is where you insert your planner
     auto start = high_resolution_clock::now();    
 
+    vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+        GroundedConditionComparator> > closed_list;
+
     // initialize the root of tree
     TreeNode* root = new TreeNode;
     root->setParent(nullptr);
     root->setG(0.0);
-    root->calcH(env->get_goal_condition());
     root->setCondition(env->get_initial_condition());
+    root->calcH(env->get_goal_condition());
+    cout<<"root h_val is "<<root->getH()<<endl;
     // lookUpG[env->get_initial_condition()] = 0.0;
 
     priority_queue< TreeNode*, vector<TreeNode*>, CompareF > open_set;
@@ -334,13 +338,10 @@ list<GroundedAction> planner(Env* env)
         TreeNode* tempPtr = open_set.top();
         tempPtr->expand();
         open_set.pop();
-
-        // vector<GroundedAction> nextActions;
-        // vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
-        //         GroundedConditionComparator> > succesorConditions;
+        closed_list.push_back( tempPtr->getCondition() );
         
         // expand tree inside function
-        calcSuccesors(env, open_set, tempPtr);        
+        calcSuccesors(env, open_set, tempPtr, closed_list);
     }
 
     // // stack<TreeNode*> optPath;
@@ -413,7 +414,9 @@ list<GroundedAction> planner(Env* env)
 int main(int argc, char* argv[])
 {
     // DO NOT CHANGE THIS FUNCTION
-    char* filename = (char*)("example.txt");
+    // char* filename = (char*)("example.txt");
+    char* filename = (char*)("block_triangle.txt");
+    // char* filename = (char*)("fire_extinguisher.txt");
     if (argc > 1)
         filename = argv[1];
 

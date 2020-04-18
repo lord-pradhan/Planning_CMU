@@ -413,6 +413,7 @@ void TreeNode::calcH(const unordered_set<GroundedCondition, GroundedConditionHas
     }
 
     H_val = (double) overlap;
+    // cout<<"H_val is "<<H_val<<endl;
 }
 
 void TreeNode::expand(){expanded = true;}
@@ -423,14 +424,15 @@ void TreeNode::setNextActions(vector<GroundedAction> actionsIn){
 }
 
 void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, CompareF >& open_setIn , 
-    TreeNode* &tempPtrIn ){
+    TreeNode* &tempPtrIn, const vector< unordered_set<GroundedCondition, GroundedConditionHasher, 
+    GroundedConditionComparator> >&closed_listIn ){
 
     int numSym = envIn->get_symbols().size();
     auto currConditions = tempPtrIn->getCondition();
 
-    // cout<<"\nIncoming conditions are ";
-    // for(auto i : currConditions){cout<<i<<", ";}
-    // cout<<endl;
+    cout<<"\nIncoming conditions are ";
+    for(auto i : currConditions){cout<<i<<", ";}
+    cout<<endl;
 
     for(auto i_action : envIn->get_actions()){
 
@@ -473,8 +475,8 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                 precondsTemp.insert(precondNew);
             }
 
-            // if(!distinct)
-            //     continue;
+            if(!distinct)
+                continue;
 
             for(auto i_effect : i_action.get_effects()){
 
@@ -536,21 +538,25 @@ void calcSuccesors(Env* envIn, priority_queue< TreeNode*, vector<TreeNode*>, Com
                     }
                 }
 
-                // add to tree
-                TreeNode* succNode = new TreeNode;
-                succNode->setParent(tempPtrIn);
-                succNode->setCondition(succesorTemp);
-                succNode->setG( tempPtrIn->getG() + 1 );
-                succNode->calcH(envIn->get_goal_condition());
-                tempPtrIn->addSuccesor(succNode);
-                tempPtrIn->addNextAction(grdAcTemp);
-                // cout<<"next action added is "<<grdAcTemp<<endl;
+                auto itClosed = find( closed_listIn.begin(), closed_listIn.end(), succesorTemp );
+                //if( closed_listIn.find(succesorTemp)==closed_listIn.end() ){
+                if(itClosed==closed_listIn.end()){
+                    // add to tree
+                    TreeNode* succNode = new TreeNode;
+                    succNode->setParent(tempPtrIn);
+                    succNode->setCondition(succesorTemp);
+                    succNode->setG( tempPtrIn->getG() + 1 );
+                    succNode->calcH(envIn->get_goal_condition());
+                    tempPtrIn->addSuccesor(succNode);
+                    tempPtrIn->addNextAction(grdAcTemp);
+                    cout<<"next action added is "<<grdAcTemp<<endl;
 
-                open_setIn.push(succNode);
+                    open_setIn.push(succNode);
 
-                // cout<<"Outgoing conditions are ";
-                // for(auto i : succesorTemp){cout<<i<<", ";}
-                // cout<<endl;
+                    cout<<"Outgoing conditions are ";
+                    for(auto i : succesorTemp){cout<<i<<", ";}
+                    cout<<endl;
+                }
             }
         }
     }
